@@ -1,0 +1,38 @@
+name: Download maps from https://dadescovid.org and publish with GitHub Pages
+
+# Schedule each day at 8:30am UTC (10:30 CEST, after data is published by authorities)
+on:
+  schedule:
+    - cron: '30 8 * * *'
+
+jobs:
+  download:
+    name: Download data from servers
+    runs-on: ubuntu-latest
+
+    # Get master branch to get executable
+    - uses: actions/checkout@v2
+      with:
+        ref: 'master'
+
+    # Used to transform JS (original data format) into JSON
+    - name: Use Node.js 12.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12.x
+
+    - name: Download Maps data and transform to SVG and JSON
+      run: |
+        mkdir newData
+        pushd newData
+            ../bin/download-map-data.sh
+        popd
+
+    - name: Deploy to GitHub Pages
+      if: success()
+      uses: crazy-max/ghaction-github-pages@v2
+      with:
+        target_branch: gh-pages
+        build_dir: newData
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
