@@ -10,6 +10,8 @@ jobs:
     name: Download data from servers
     runs-on: ubuntu-latest
 
+    steps:
+
     # Get master branch to get executable
     - uses: actions/checkout@v2
       with:
