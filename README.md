@@ -1,3 +1,5 @@
+![Download maps from backend and publish with GitHub Pages](https://github.com/emibcn/covid-data/workflows/Download%20maps%20from%20https://dadescovid.org%20and%20publish%20with%20GitHub%20Pages/badge.svg)
+
 # Covid Data
 
 This repo is used to store and serve daily collected data from https://dadescovid.org (institutional data published by the __Generalitat de Catalunya__ ) into GitHub pages. The reasons for collecting this data are:
