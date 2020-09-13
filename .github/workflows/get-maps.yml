@@ -23,10 +23,13 @@ jobs:
 
     - name: Download Maps data and transform to SVG and JSON
       run: |
-        mkdir newData
-        pushd newData
-            ../bin/download-map-data.sh
+        mkdir -p newData/Maps
+        pushd ./newData/Maps
+            ../../bin/download-map-data.sh
         popd
+
+        # Minimum info
+        cp README.md newData/index.html
 
     - name: Deploy to GitHub Pages
       if: success()
