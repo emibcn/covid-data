@@ -1,4 +1,4 @@
-name: Download maps from https://dadescovid.org and publish with GitHub Pages
+name: Download maps from backend and publish with GitHub Pages
 
 # Schedule each day at 8:30am UTC (10:30 CEST, after data is published by authorities)
 on:

@@ -1,4 +1,4 @@
-![Download maps from backend and publish with GitHub Pages](https://github.com/emibcn/covid-data/workflows/Download%20maps%20from%20https://dadescovid.org%20and%20publish%20with%20GitHub%20Pages/badge.svg)
+![Download maps from backend and publish with GitHub Pages](https://github.com/emibcn/covid-data/workflows/Download%20maps%20from%20backend%20and%20publish%20with%20GitHub%20Pages/badge.svg)
 
 # Covid Data
 
