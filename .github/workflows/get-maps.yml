@@ -31,7 +31,8 @@ jobs:
             ../../bin/download-map-data.sh
         popd
 
-        # Minimum info
+        # Minimum info for repo and for web
+        cp README.md newData/
         cp README.md newData/index.html
 
     - name: Deploy to GitHub Pages
