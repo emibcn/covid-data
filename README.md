@@ -3,7 +3,7 @@
 # Covid Data
 
 This repo is used to store and serve daily collected data from https://dadescovid.org (institutional data published by the __Generalitat de Catalunya__ ) into GitHub pages. The reasons for collecting this data are:
-- The data will be used from apps which don't need more than daily updates
+- The data will be used from apps which don't need more than daily updates, like [Covid Data `Refactored`](https://emibcn.github.io/covid/), an [open source serverless Progressive Web Application](https://github.com/emibcn/covid)
 - Original data requests might be blocked by CORS or other technologies
 - Original servers and data might not be efficient enough
 - When applicable, normalize data from various servers
