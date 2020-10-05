@@ -9,17 +9,29 @@ This repo is used to store and serve daily collected data from https://dadescovi
 - When applicable, normalize data from various servers
 
 The collected data is minimally adapted before publishing it:
+
+Maps:
 - Transform JS statements into JSON objects
 - Reduce some non-visible `id`'s to reduce users and servers resource consumptions
 
-This repo might collect other data in the future, from the same server, it's [backend server](https://analisi.transparenciacatalunya.cat/) or from 3rd party servers (EU statistics servers? Data collection from other territories?).
+Charts:
+- Transform JS statements into JSON objects
+- Transform HTML tags attributes and content into JSON structured data
+
+This repo might collect other data in the future, from the same server, it's [backend server](https://analisi.transparenciacatalunya.cat/) or from 3rd party servers (EU statistics servers? Data collection from other regions?).
 
 # Techie
 
+This process is executed from a [GitHub Workflow](./.github/workflows/get-maps-and-charts.yml) (`cron` scheduled some minuts after official data publication at 10am CEST). Once the data is obtained, deploy it to this repo' GitHub Pages in the `gh-pages` branch.
+
+## Maps
 The data is collected by an ugly [BASH sccript](./bin/download-map-data.sh). This script collects the interesting parts (maps SVG source, JS code with data on it) and saves them into files. The SVG files are saved transparently. The JS files are executed with NODE to ouput the collected data as JSON.
 
-This process is executed from a [GitHub Workflow](./.github/workflows/get-maps.yml) (`cron` scheduled some minuts after official data publication at 10am CEST). Once the data is obtained, deploy it to this repo' GitHub Pages in the `gh-pages` branch.
+## Charts
+The data is collected by a [nice NodeJS package](./charts/). This script scrapes data from HTML tags and JS code. It generates individual JSON files for each region/population selectors, and a global JSON index file with the regions recursive structure and all the download links. Deep use of `async`/`await`.
 
 # License
 
-The license of the data is the same as the original: [Open Data Commons Attribution License](http://opendatacommons.org/licenses/by/1.0/), as stated in [the backend API page](https://analisi.transparenciacatalunya.cat/Salut/Dades-setmanals-de-COVID-19-per-comarca/jvut-jxu8).
+The application, scripts and documentation in this project are released under the [GNU General Public License v3.0](./LICENSE).
+
+The license of the data is the same as the original: [Open Data Commons Attribution License](http://opendatacommons.org/licenses/by/1.0/), as stated in [the backend API page](https://analisi.transparenciacatalunya.cat/Salut/Dades-setmanals-de-COVID-19-per-comarca/jvut-jxu8) owned by the _Generalitat de Catalunya_.

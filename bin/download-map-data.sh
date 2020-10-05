@@ -2,6 +2,7 @@
 
 set -o pipefail
 
+# Generates a table with "MAP TYPE URL"
 get_all_url() {
     local MAPS=( comarca municipi )
     local TYPES=( risc taxa_conf rt edat pcrpos taxapcr )
@@ -22,7 +23,7 @@ transform_js_to_json() {
     # Print collected data as JSON
     echo "console.log( JSON.stringify( ${VARIABLE} ) );" >> "${FILE}"
 
-    # Ouput JSON data to be saved
+    # Output JSON data to be saved
     node "${FILE}"
 }
 
@@ -30,7 +31,7 @@ transform_js_to_json() {
 # - Extract relevant data
 # - Output to JS file
 # - Execute JS file (where extracted data is printed as plain JSON)
-# - Svae JSON data to file
+# - Save JSON data to file
 parse_url() {
     local MAP="$1"
     local URL="$2"

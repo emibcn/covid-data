@@ -1,4 +1,4 @@
-name: Download maps from backend and publish with GitHub Pages
+name: Download maps and charts from backend and publish with GitHub Pages
 
 # Schedule each day at 8:30am UTC (10:30 CEST, after data is published by authorities)
 on:
@@ -19,10 +19,17 @@ jobs:
         ref: 'master'
 
     # Used to transform JS (original data format) into JSON
-    - name: Use Node.js 12.x
+    - name: Use Node.js 14.x
       uses: actions/setup-node@v1
       with:
-        node-version: 12.x
+        node-version: 14.x
+
+    - name: Prepare destination environment
+        mkdir -p newData
+
+        # Minimum info for repo and for web
+        cp README.md newData/
+        cp README.md newData/index.html
 
     - name: Download Maps data and transform to SVG and JSON
       run: |
@@ -31,9 +38,17 @@ jobs:
             ../../bin/download-map-data.sh
         popd
 
-        # Minimum info for repo and for web
-        cp README.md newData/
-        cp README.md newData/index.html
+    - name: Download Charts data and transform to JSON
+      run: |
+        mkdir -p newData/Charts cache
+
+        # Install node dependencies (fetch)
+        pushd charts
+            npm install
+        popd
+
+        # Do the job
+        node charts/index.js cache newData/Charts
 
     - name: Deploy to GitHub Pages
       if: success()
