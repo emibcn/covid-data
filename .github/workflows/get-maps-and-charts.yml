@@ -25,6 +25,7 @@ jobs:
         node-version: 14.x
 
     - name: Prepare destination environment
+      run: |
         mkdir -p newData
 
         # Minimum info for repo and for web
