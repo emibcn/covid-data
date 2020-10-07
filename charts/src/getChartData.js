@@ -42,12 +42,13 @@ class GetChartData {
   }
 
   // Transform a string into a smaller/hash one of it
+  // Remove garbage chars to prevent hash changing to the same url
   hashStr = (str='') => {
     if (str.length === 0) {
       return 0;
     }
   
-    return [...str]
+    return [...str.replace(/&id_html=[^&]*/, '')]
       .map( char => char.charCodeAt(0) )
       .reduce( (hash, int) => {
         const hashTmp = ((hash << 5) - hash) + int;
