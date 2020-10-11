@@ -1,4 +1,4 @@
-![Download maps from backend and publish with GitHub Pages](https://github.com/emibcn/covid-data/workflows/Download%20maps%20from%20backend%20and%20publish%20with%20GitHub%20Pages/badge.svg)
+![Download maps and charts from backend and publish with GitHub Pages](https://github.com/emibcn/covid-data/workflows/Download%20maps%20and%20charts%20from%20backend%20and%20publish%20with%20GitHub%20Pages/badge.svg)
 
 # Covid Data
 
@@ -29,6 +29,9 @@ The data is collected by an ugly [BASH sccript](./bin/download-map-data.sh). Thi
 
 ## Charts
 The data is collected by a [nice NodeJS package](./charts/). This script scrapes data from HTML tags and JS code. It generates individual JSON files for each region/population selectors, and a global JSON index file with the regions recursive structure and all the download links. Deep use of `async`/`await`.
+
+## Barcelona
+The data is collected by a [nice NodeJS package](./bcn/). This script scrapes data using a self mave version of [SockJS](./bcn/src/Socket.js). It generates individual JSON files for each datasource or datasource section, and a global JSON index file with the data and all the download links. Deep use of `async`/`await`. Some use of Streams and Iterator Generator. Very funny stuff!
 
 # License
 
