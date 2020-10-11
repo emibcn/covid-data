@@ -51,6 +51,18 @@ jobs:
         # Do the job
         node charts/index.js cache newData/Charts
 
+    - name: Download Barcelona data and transform to JSON
+      run: |
+        mkdir -p newData/Bcn cache
+
+        # Install node dependencies (fetch)
+        pushd bcn
+            npm install
+        popd
+
+        # Do the job
+        node bcn/index.js cache newData/Bcn
+
     - name: Deploy to GitHub Pages
       if: success()
       uses: crazy-max/ghaction-github-pages@v2

@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "dependencies": {
+    "abortcontroller-polyfill": "^1.5.0",
+    "cross-fetch": "^3.0.6"
+  }
+}
