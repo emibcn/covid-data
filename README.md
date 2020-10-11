@@ -37,4 +37,6 @@ The data is collected by a [nice NodeJS package](./bcn/). This script scrapes da
 
 The application, scripts and documentation in this project are released under the [GNU General Public License v3.0](./LICENSE).
 
-The license of the data is the same as the original: [Open Data Commons Attribution License](http://opendatacommons.org/licenses/by/1.0/), as stated in [the backend API page](https://analisi.transparenciacatalunya.cat/Salut/Dades-setmanals-de-COVID-19-per-comarca/jvut-jxu8) owned by the _Generalitat de Catalunya_.
+The license of the data scraped from https://dadescovid.cat and saved into the directories `Charts` and `Maps` is the same as the original: [Open Data Commons Attribution License](http://opendatacommons.org/licenses/by/1.0/), as stated in [the backend API page](https://analisi.transparenciacatalunya.cat/Salut/Dades-setmanals-de-COVID-19-per-comarca/jvut-jxu8) owned by the _Generalitat de Catalunya_.
+
+The license of the data scraped from https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn is the same as the original: [Creative Commons CC-BY](https://creativecommons.org/licenses/by/2.0/). The owner is the _Ajuntament de Barcelona_.
