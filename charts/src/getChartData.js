@@ -34,7 +34,7 @@ class GetChartData {
     return response;
   }
 
-  // Promis based setTimeout (async/await compatible)
+  // Promise based setTimeout (async/await compatible)
   wait = (seconds) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => resolve(), seconds);
