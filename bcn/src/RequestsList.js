@@ -4,6 +4,20 @@
 // - We don't need them parsed, just as plain JSON strings
 import Queries from './QueriesPlain.js';
 
+//
+// Requests/parsers helpers
+//
+
+// Menu
+import {findMenu, parseMenu} from './MenuHelpers.js';
+
+//
+// Global helpers
+//
+
+// Save menu structured data to allow other requests to use its info
+let menu;
+
 const RequestsList = [
 
   // 
@@ -20,6 +34,7 @@ const RequestsList = [
   //   - If parsed has a `sections` array on it, each element's `values` will be moved to a different file
   //   - If the data may have `errors`, parse them with `parseErrors` argument (see examples)
   //   - If the data is time based (preferably), add a `range` array with first and last date values
+  //   - If you need to parse complex data (for example: HTML complex data), take a look at `MenuHelpers.js` and follow example
   //
 
   // Pre
@@ -45,7 +60,16 @@ const RequestsList = [
       // - Paisos
       // - ...
       parseErrors('Initialization', data.errors);
-      return null;
+
+      //console.dir(data, {depth: null});
+
+      // Save in a global to allow other requests to use it's date
+      menu = parseMenu( data.values.sidebarMenuLeft.html );
+
+      return {
+        code: 'menu',
+        menu,
+      };
     },
   },
 
@@ -91,8 +115,13 @@ const RequestsList = [
 
       // Transform data shape
       console.dir(data,{depth: null});
+
+      // Get related menu item to get the dataset title
+      const menuOption = findMenu('mobilitatVehicles', menu);
+
       return {
-        code: 'mobility',
+        code: menuOption.code,
+        title: menuOption.name,
         sections: ['IND_MOB_VEH_BCN','IND_MOB_TRA_ZBE', 'IND_MOB_TRA_PUB']
           .map(graph => ({
             code: graph,
