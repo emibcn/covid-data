@@ -1,9 +1,8 @@
 // AbortController polyfill is needed for Node and Chrome GoogleBot
-import { AbortController, abortableFetch } from 'abortcontroller-polyfill/dist/cjs-ponyfill.js';
+import { AbortController } from 'abortcontroller-polyfill/dist/cjs-ponyfill.js';
 
 // This is only needed for Node
-import _fetch from 'cross-fetch';
-const { fetch } = abortableFetch(_fetch);
+import fetch from 'cross-fetch';
 
 // Socket: Simulate socketjs xhr-stream client, much simpler, fully async/await,
 // with iterator generator over fetch' body response chunks to responses
@@ -14,7 +13,8 @@ const { fetch } = abortableFetch(_fetch);
 // response body stream, transforming partial chunks into full lines
 async function* makeTextFetchLineIterator(fileURL, options) {
   const utf8Decoder = new TextDecoder('utf-8');
-  const response = await fetch(fileURL, options);
+  const response = await fetch(fileURL, options)
+    .catch(err => console.log("Iterator: Fetch: Error:", err));
   console.log("Response:",response);
   const reader = response.body;
 
@@ -35,7 +35,14 @@ async function* makeTextFetchLineIterator(fileURL, options) {
         return next;
       }
       else {
-        yield next;
+        // If `yield` returns something, it's a user parameter passed through `next`
+        // We use it to cleanly close the stream when called as `next(true)`
+        const close = yield next;
+        if (close) {
+          reader.end();
+          reader.destroy();
+          throw new Error("Generator: aborted");
+        }
       }
       startIndex = re.lastIndex;
     }
@@ -52,6 +59,9 @@ async function* makeTextFetchLineIterator(fileURL, options) {
 const getRandomStr = (length) => [...Array(length)].map(() => Math.random().toString(36)[2]).join('');
 
 class Socket {
+
+  // Used to abort ongoing connections
+  controller = new AbortController();
 
   constructor(baseUrl) {
     this.baseUrl = baseUrl;
@@ -71,12 +81,15 @@ class Socket {
   }
 
   // (Re)Starts a streaming XHR connection to the server
-  connect = () => {
+  connect = async () => {
     const doneOld = this.done;
     this.done = (async () => {
 
       // Use AbortController to allow aborting the long polling connection
-      this.controller = new AbortController();
+      this.controller.signal.onabort = (event) => {
+        console.log("Socket: Connect: Aborted!", event);
+        return true
+      }
      
       // Parse the long polling connection as an iterable,
       // which already parses the incoming chunks into lines
@@ -95,6 +108,7 @@ class Socket {
         : value => /^h{2,}$/.test(value);
 
       for(;;) {
+        console.log("Connect: Wait for next line");
         const line = await this.iterable.next();
         console.log("Connect: Received line: ", line);
         if (testConnected(line.value)) {
@@ -111,6 +125,21 @@ class Socket {
     console.log("Connect: Assign Promise to done:", {old: doneOld, new: this.done});
 
     return this.done;
+  }
+
+  // Close the stream connection
+  close = async () => {
+    console.log(`Socket: Abort pending connections`);
+
+    this.controller.abort();
+
+    console.log("Consume remaining iterable and ask to close.");
+
+    try {
+      await this.iterable.next(true);
+    } catch(err) { }
+
+    console.log("Socket: All done closing.");
   }
 
   // Consume messages in iterator, under demmand
@@ -187,27 +216,48 @@ class Socket {
     return await this.consume(validate);
   }
 
-  // Close the stream connection
-  // The `send` fetches are occasional. Should I care about them?
-  close = () => this.controller.abort();
+  connectRetry = async (count=3) => {
+    // Try to connect 3 times
+    // Re-throw the error on the last
+    try {
+      await this.connect();
+    } catch(err) {
 
-  // Send a request
-  send = async (payload, validate) => {
+      // Re-throw
+      if (i === 0) {
+        throw err
+      }
 
+      // Re-try
+      await this.connectRetry(count-1);
+    }
+  }
+
+  ensureConnection = async () => {
     // If the backend has disconnected, re-connect
     if (this.done === true || this.done === undefined) {
       console.log("Consume: Backend disconnected. Reconnect.");
-      await this.connect();
+      await this.connectRetry();
     }
+
     // If backend is already reconnecting, wait for it to end
     else if (typeof this.done === 'Promise') {
       console.log("Consume: Backend reconnecting. Wait for it.");
       await this.done;
     }
 
+  }
+
+  // Send a request
+  send = async (payload, validate) => {
+
+    // Ensure we have socket connected
+    await this.ensureConnection();
+
     console.log(`Send query: POST ${this.url}: ${JSON.stringify([payload]).substring(0,80)}`);
     await fetch(this.url, {
       method: 'POST',
+      signal: this.controller.signal,
       headers: {
         'Content-Type': 'text/plain',
         'Connection': 'keep-alive',
@@ -217,11 +267,15 @@ class Socket {
 
     // Handle possible server disconnections
     try {
+
       return await this.consume(validate);
+
     } catch(err) {
+
       console.log("Send: Error consuming:", err);
       await this.connect();
       return await this.consume(validate);
+
     }
   }
 }

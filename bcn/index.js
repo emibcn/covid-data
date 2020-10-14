@@ -10,14 +10,18 @@ try {
 
   console.log("::group::Downloading log");
   const getter = new GetAllChartData({baseHTMLFile, baseJSONFile});
-  const { result, counters }  = await getter.get();
+  const { result, errors, counters }  = await getter.get();
   console.log("::endgroup::");
 
   console.log("::group::Result");
   console.dir(result, {depth: null});
   console.log("::endgroup::");
 
-  //console.log("Summary:", result.map( ({territori, poblacio}) => ({territori, poblacio})));
+  if (errors.count) {
+    console.error("Errors during download:", errors.count);
+    errors.messages.forEach( message => console.error(message) );
+  }
+
   console.log("Counters:", counters);
 
 } catch(err) {
