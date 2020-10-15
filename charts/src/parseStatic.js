@@ -84,6 +84,8 @@ const get_all_links = (data) => {
   const result = data
     .matchAll(/[ \t]*<a (?:id="(?:sap_|ambit_|up_)|class="dropdown-item")[^>]*>[^<]*<\/a>/g);
   return Array.from(result, m => m[0])
+    // Remove base URL
+    .map(r => r.replace(/https:\/\/dadescovid.cat/, ''))
     // Remove translation links
     .filter(r => r.indexOf("?lang=") === -1)
     // Replace '&amp;' back to '&' (both work, but this is shorter)
