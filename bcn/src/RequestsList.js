@@ -38,7 +38,7 @@ const parseGraph = (graph, data) => ({
   },
   values: data.values[`plot_${graph}`].x.hc_opts.series
     .map(({name, type, tooltip, data}) => ({
-      name,
+      name: name ?? tooltip.pointFormat.replace(/^<b>([^:]*):.*$/, '$1'),
       type,
       format: tooltip.pointFormat.replace(/^[^:]*: \{[^:]*:([^}]*)\}([^<]*).*$/, '{$1}$2'),
       data: data.map(({y}) => y),
