@@ -75,7 +75,9 @@ class GetAllData {
   // If cache exists, return results from there
   // If not, do the request and save its results to cache
   readFromFileOrHandleRequest = async (request) => {
-    const hash = hashStr(request.query);
+    const {query: _query, ...restRequest} = request;
+    const query = typeof _query === 'function' ? _query() : _query;
+    const hash = hashStr(query);
     const file = `${this.baseHTMLFile}/response.json?${hash}`;
 
     // Try to read data from cached file
@@ -103,7 +105,7 @@ class GetAllData {
       console.log(`The file '${file}' was not read from cache: fetch '${hash}':`, err.message);
 
       // Try to download a fresh copy from web
-      const data = await this.handleRequest(request);
+      const data = await this.handleRequest({query, ...restRequest});
 
       // Once downloaded, save page into cache file
       console.log(`Save response from '${hash}' to file '${file}'.`);
@@ -130,7 +132,7 @@ class GetAllData {
 
     // Handle each request, using its validator and its parser to
     // generate (or not) array elements
-    for(const request of requests) {
+    for (const request of requests) {
       const parsed = await this.readFromFileOrHandleRequest(request);
 
       // There are steps which don't need to be saved
