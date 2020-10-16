@@ -18,32 +18,33 @@ const getAllText = (node) => {
   }).join('')
 }
 
-const parseLink = (link) => {
-  const name = getAllText(link);
-  const code = link.attribs['data-value']?.trim("\n\r ");
-  return {
-    name,
-    ...(code ? {code} : {}),
-  }
-}
-
-const parseLi = (li) => {
-  const ul = li.children.find(({type, name}) => type === 'tag' && name === 'ul' );
-  const link = li.children.find(({type, name}) => type === 'tag' && name === 'a' );
-  return {
-    ...(link ? parseLink(link) : {}),
-    ...(ul ? {children:  parseUl(ul)} : {}),
-  }
-}
-
-const parseUl = (ul) => {
-  return ul.children.filter(({type, name}) => type === 'tag' && name === 'li' ).map( child => {
-    return parseLi(child);
-  });
-}
-
 // Parses HTML data containing a UL/LI/A tree
 const parseMenu = (data) => {
+
+  const parseLink = (link) => {
+    const name = getAllText(link);
+    const code = link.attribs['data-value']?.trim("\n\r ");
+    return {
+      name,
+      ...(code ? {code} : {}),
+    }
+  }
+
+  const parseLi = (li) => {
+    const ul = li.children.find(({type, name}) => type === 'tag' && name === 'ul' );
+    const link = li.children.find(({type, name}) => type === 'tag' && name === 'a' );
+    return {
+      ...(link ? parseLink(link) : {}),
+      ...(ul ? {children:  parseUl(ul)} : {}),
+    }
+  }
+
+  const parseUl = (ul) => {
+    return ul.children.filter(({type, name}) => type === 'tag' && name === 'li' ).map( child => {
+      return parseLi(child);
+    });
+  }
+
   let result;
   const handler = new DomHandler( (error, dom) => {
     if (error) {
@@ -53,6 +54,43 @@ const parseMenu = (data) => {
       result = parseUl(dom[0]);
     }
   });
+
+  const parser = new Parser(handler);
+  parser.write(data);
+  parser.end();
+  return result;
+}
+
+// Parses HTML data containing <select><options> tags
+const parseOptions = (data) => {
+
+  const parseOption = (option) => {
+    const name = getAllText(option);
+    const code = option.attribs['value'];
+    return {
+      name,
+      ...(code ? {code} : {}),
+    }
+  }
+  const parseSelect = (select) => {
+    return select.children.filter(({type, name}) => type === 'tag' && name === 'option' ).map( child => {
+      return parseOption(child);
+    });
+  }
+
+  let result;
+  const handler = new DomHandler( (error, dom) => {
+    if (error) {
+      // Handle error
+    } else {
+      // Parsing completed, do something
+      const select = dom[0]
+        .children.find(n => n.type === 'tag' && n.name === 'div' )
+        .children.find(n => n.type === 'tag' && n.name === 'select' );
+      result = parseSelect(select);
+    }
+  });
+
   const parser = new Parser(handler);
   parser.write(data);
   parser.end();
@@ -80,4 +118,4 @@ const findMenu = (code, list) => {
   throw new Error(`Menu item not found: '${code}'`);
 }
 
-export {findMenu, parseMenu};
+export {findMenu, parseMenu, parseOptions};
