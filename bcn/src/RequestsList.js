@@ -52,6 +52,7 @@ const parseGraph = (graph, data) => ({
         data[0].DadesVariableX,
         data[ data.length - 1 ].DadesVariableX
       ],
+      dates: data.map( d => d.DadesVariableX ),
     }))
 })
 
