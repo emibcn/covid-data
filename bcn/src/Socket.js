@@ -63,6 +63,9 @@ class Socket {
   // Used to abort ongoing connections
   controller = new AbortController();
 
+  // Forced requests will be treated as initial ones
+  initialRequests = [];
+
   constructor(baseUrl) {
     this.baseUrl = baseUrl;
     this.generateConnectionString();
@@ -131,13 +134,17 @@ class Socket {
   close = async () => {
     console.log(`Socket: Abort pending connections`);
 
+    // Once used, create a new AbortController
     this.controller.abort();
+    this.controller = new AbortController();
 
     console.log("Consume remaining iterable and ask to close.");
 
     try {
       await this.iterable.next(true);
     } catch(err) { }
+
+    this.done = undefined;
 
     console.log("Socket: All done closing.");
   }
@@ -209,6 +216,41 @@ class Socket {
     }
     else {
       console.log("Not matched Array:",{reUnArray,resultUnArray,received:{done,value}});
+
+      // Parse "c[...]"
+      const reUnException = /^c(\[.*\])$/;
+      const resultUnException = reUnException.exec(value);
+
+      // Connection was completely restarted
+      // We need to send the initial requests
+      if (value === 'o') {
+        console.log(`Complete connection restart detected. Sending initial commands (${this.initialRequests.length})...`);
+        await this.sendInitialRequests();
+        return false;
+      }
+      // There was an error sent from server
+      else if (resultUnException?.length) {
+        const [,dataArrayStr] = resultUnException;
+        const dataArray = JSON.parse(dataArrayStr);
+        const [code, error] = dataArray;
+
+        console.warn(`Detected error from server: ${code} - ${error}`);
+
+        // Unable to open connection
+        if (code === 4705) {
+          // We need a complete new connection
+          console.log(`Complete connection restart forced.`);
+          await this.close();
+          this.generateConnectionString();
+          await this.connect();
+
+          return false;
+        }
+        // Unable to open connection
+        else {
+          throw new Error(`Connection error: ${code} - ${error}`);
+        }
+      }
     }
 
     // Try again with the next received line
@@ -248,11 +290,23 @@ class Socket {
 
   }
 
+  sendInitialRequests = async () => {
+    for (const request of this.initialRequests) {
+      const {payload, validate} = request;
+      await this.send(payload, validate);
+    }
+  }
+
   // Send a request
-  send = async (payload, validate) => {
+  send = async (payload, validate, initial) => {
 
     // Ensure we have socket connected
     await this.ensureConnection();
+
+    // Save initial requests into a specialized array
+    if (initial) {
+      this.initialRequests.push({payload, validate});
+    }
 
     console.log(`Send query: POST ${this.url}: ${JSON.stringify([payload]).substring(0,80)}`);
     await fetch(this.url, {
@@ -266,17 +320,25 @@ class Socket {
     });
 
     // Handle possible server disconnections
+    var result;
     try {
 
-      return await this.consume(validate);
+      result = await this.consume(validate);
 
     } catch(err) {
 
       console.log("Send: Error consuming:", err);
       await this.connect();
-      return await this.consume(validate);
+      result = await this.consume(validate);
 
     }
+
+    // If result is exactly `false`, we need to resend the query
+    if (result === false) {
+      return await this.send(payload, validate, initial);
+    }
+
+    return result;
   }
 }
 
