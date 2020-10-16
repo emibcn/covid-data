@@ -37,9 +37,10 @@ class GetAllData {
     messages: [],
   };
 
-  constructor({ baseHTMLFile, baseJSONFile }) {
+  constructor({ baseHTMLFile, baseJSONFile, disableCache }) {
     this.baseHTMLFile = baseHTMLFile;
     this.baseJSONFile = baseJSONFile;
+    this.disableCache = disableCache;
   }
 
   // Treat data errors as warnings:
@@ -85,7 +86,9 @@ class GetAllData {
     // Try to read data from cached file
     try {
 
-      //throw new Error("Cache temporarily disconnected");
+      if (this.disableCache) {
+        throw new Error("Cache temporarily disabled");
+      }
 
       // If forced, throw error to jump to catch block
       if (request.force) {
@@ -227,3 +230,4 @@ class GetAllData {
 }
 
 export default GetAllData;
+export {hashStr}; // For unit testing
