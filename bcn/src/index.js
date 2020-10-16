@@ -37,9 +37,10 @@ class GetAllData {
     messages: [],
   };
 
-  constructor({ baseHTMLFile, baseJSONFile }) {
+  constructor({ baseHTMLFile, baseJSONFile, disableCache }) {
     this.baseHTMLFile = baseHTMLFile;
     this.baseJSONFile = baseJSONFile;
+    this.disableCache = disableCache;
   }
 
   // Treat data errors as warnings:
@@ -61,14 +62,14 @@ class GetAllData {
   }
 
   // Handles a single request process
-  handleRequest = async ({query, validate}) => {
+  handleRequest = async ({query, validate, force}) => {
 
     // Send request to server:
     // - It may need to auto-(re)connect the socket
     // - It may need to re-send the request
     // - Looks for correct results (JSON object)
     // - Validates with request validate callback
-    return await this.sock.send( query, validate );
+    return await this.sock.send(query, validate, force);
   }
 
   // Cache responses to files
@@ -80,32 +81,36 @@ class GetAllData {
     const hash = hashStr(query);
     const file = `${this.baseHTMLFile}/response.json?${hash}`;
 
+    let data;
+
     // Try to read data from cached file
     try {
+
+      if (this.disableCache) {
+        throw new Error("Cache temporarily disabled");
+      }
 
       // If forced, throw error to jump to catch block
       if (request.force) {
         throw new Error("Forced request download");
       }
 
-      const data = await fs.readFile(file, 'utf8');
+      const dataStr = await fs.readFile(file, 'utf8');
 
       // Parse the JSON into a JS object and, then, the request parse
-      const parsed = request.parse( JSON.parse(data), this.parseDataErrors );
+      data = JSON.parse(dataStr);
 
       console.warn(`Request read from file '${file}': '${hash}'`);
 
       // Increment read counter only if it was ok
       this.counters.read++;
 
-      return parsed
-
     } catch (err) {
 
       console.log(`The file '${file}' was not read from cache: fetch '${hash}':`, err.message);
 
       // Try to download a fresh copy from web
-      const data = await this.handleRequest({query, ...restRequest});
+      data = await this.handleRequest({query, ...restRequest});
 
       // Once downloaded, save page into cache file
       console.log(`Save response from '${hash}' to file '${file}'.`);
@@ -121,8 +126,13 @@ class GetAllData {
       // Increment downloaded counter only if it was ok
       this.counters.downloaded++;
 
-      return parsed
+    }
 
+    try {
+      return request.parse( data, this.parseDataErrors );
+    } catch(err) {
+      console.error(err);
+      throw new Error(`Error parsing the results: ${err.message}`);
     }
   }
 
@@ -220,3 +230,4 @@ class GetAllData {
 }
 
 export default GetAllData;
+export {hashStr}; // For unit testing

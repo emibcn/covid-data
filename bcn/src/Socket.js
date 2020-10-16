@@ -14,7 +14,10 @@ import fetch from 'cross-fetch';
 async function* makeTextFetchLineIterator(fileURL, options) {
   const utf8Decoder = new TextDecoder('utf-8');
   const response = await fetch(fileURL, options)
-    .catch(err => console.log("Iterator: Fetch: Error:", err));
+    .catch(err => {
+      console.log("Fetch Iterator: Fetch: Error:", err);
+      throw err
+    });
   console.log("Response:",response);
   const reader = response.body;
 
@@ -22,12 +25,16 @@ async function* makeTextFetchLineIterator(fileURL, options) {
 
   let remaining = '';
   for await (const bytes of reader) {
+
     const chunk = remaining + (bytes ? utf8Decoder.decode(bytes) : '');
     console.log("Chunk received");
     let startIndex = 0;
     let result;
+
     while(result = re.exec(chunk)) {
       const next = chunk.substring(startIndex, result.index);
+
+      // If stream end is detected
       if (reader.done && (
             re.lastIndex === chunk.length - 1 || // No more chars
             result[0] === '\n'                   // Only '\n' remaining
@@ -38,19 +45,26 @@ async function* makeTextFetchLineIterator(fileURL, options) {
         // If `yield` returns something, it's a user parameter passed through `next`
         // We use it to cleanly close the stream when called as `next(true)`
         const close = yield next;
+
         if (close) {
           reader.end();
           reader.destroy();
           throw new Error("Generator: aborted");
         }
       }
+
       startIndex = re.lastIndex;
     }
+
+    // Save remaining (not consumed) data
     remaining = chunk.substr(startIndex);
+
+    // Restart newlines Regexp parser
     startIndex = re.lastIndex = 0;
   }
+
+  // Last line didn't end in a newline char
   if (remaining.length) {
-    // Last line didn't end in a newline char
     return remaining;
   }
 }
@@ -62,6 +76,9 @@ class Socket {
 
   // Used to abort ongoing connections
   controller = new AbortController();
+
+  // Forced requests will be treated as initial ones
+  initialRequests = [];
 
   constructor(baseUrl) {
     this.baseUrl = baseUrl;
@@ -111,11 +128,13 @@ class Socket {
         console.log("Connect: Wait for next line");
         const line = await this.iterable.next();
         console.log("Connect: Received line: ", line);
+
         if (testConnected(line.value)) {
           console.log("Connect: Received start!");
           this.done = false;
           return;
         }
+
         if (line.done) {
           throw new Error("Connect: Backend disconnected");
         }
@@ -131,15 +150,126 @@ class Socket {
   close = async () => {
     console.log(`Socket: Abort pending connections`);
 
+    // Once used, create a new AbortController
     this.controller.abort();
+    this.controller = new AbortController();
 
     console.log("Consume remaining iterable and ask to close.");
-
     try {
       await this.iterable.next(true);
     } catch(err) { }
 
+    this.done = undefined;
+
     console.log("Socket: All done closing.");
+  }
+
+  // Parses a message raw response
+  // Before parsing, tests is message is applicable to parsing message kind
+  // If applies, will returns JSON.parse results, or throws error on JSON parse error
+  parseMessageStr = (value, regexp) => {
+    // Parse "a[...]" or "c[...]" or "4F#0|m|{...}"
+    const result = regexp.exec(value);
+
+    // If found, look for Array of data
+    if (result?.length) {
+      // Parse multiple data in a possible single message array
+      const [,dataStr] = result;
+
+      try {
+        return JSON.parse(dataStr)
+      } catch(err) {
+        console.warn("Consume: Error parsing JSON: ", {err, dataStr, result});
+        throw err;
+      }
+    }
+
+    return false;
+  }
+
+  // Parses an error message received by consume
+  // If possible, tries to solve the situation
+  // If not possible, throws fatal error
+  parseConsumeError = async (value) => {
+    // Connection was completely restarted
+    // We need to send the initial requests
+    if (value === 'o') {
+      console.log(`Complete connection restart detected. Sending initial commands (${this.initialRequests.length})...`);
+      await this.sendInitialRequests();
+      return false;
+    }
+
+    // Parse "c[...]"
+    const dataArray = this.parseMessageStr(value, /^c(\[.*\])$/);
+
+    // There was an error sent from server
+    if (dataArray !== false) {
+      const [code, error] = dataArray;
+
+      console.warn(`Detected error from server: ${code} - ${error}`);
+
+      // Unable to open connection
+      if (code === 4705) {
+        // We need a complete new connection
+        console.log(`Complete connection restart forced.`);
+        await this.close();
+        this.generateConnectionString();
+        await this.connect();
+
+        return false;
+      }
+      // Unhandled connection error
+      else {
+        throw new Error(`Connection FATAL error: ${code} - ${error}`);
+      }
+    }
+
+    // We can continue consuming normally
+    return true;
+  }
+
+  // Tries to parse a consume raw response
+  // - On success, returns object response
+  // - If not array response (keepalive/ACK/error), returns false (wait for next or possible error)
+  // - If array but without object (lack examples) or with a not validated
+  //   object (busy,recalculating,recalculated, i...), returns null
+  parseConsumeResponse = (value, validate) => {
+
+    // Parse "a[...]"
+    const dataArray = this.parseMessageStr(value, /^a(\[.*\])$/);
+
+    // If found, look for Array of data
+    if (dataArray !== false) {
+
+      // For each data, look for quoted text with a JSON prefixed with some code
+      for (const data of dataArray) {
+
+        // Original sockjs code evals the string to get the value
+        const parsed = this.parseMessageStr(data, /^\w+#\w+\|m\|(\{.*\})$/);
+       
+        // If found, parse the JSON part and return the resulting object
+        if (parsed !== false) {
+          console.log("Correct result found in response. Message received:", {parsed});
+
+          // Test if request' final response validation passes
+          if (validate(parsed)) {
+            console.log("Final message received");
+            return parsed;
+          }
+          else {
+            console.log("Not validated");
+          }
+        }
+        else {
+          console.log("Not matched object:",{data});
+        }
+      }
+    }
+    else {
+      return false
+    }
+
+    return null;
   }
 
   // Consume messages in iterator, under demmand
@@ -157,58 +287,38 @@ class Socket {
       }
     }
 
-    console.log("Consume: Received:",{
+    console.log("Consume: Received:", {
       done,
       value: value?.substring(0,80),
     });
 
-    // Parse "a[...]"
-    const reUnArray = /^a(\[.*\])$/;
-    const resultUnArray = reUnArray.exec(value);
+    // Tries to parse and validate a correct message string
+    const parsedResponse = this.parseConsumeResponse(value, validate);
 
-    // If found, look for Array of data
-    if (resultUnArray?.length) {
-      // Parse multiple data in a single message array
-      const [,dataArrayStr] = resultUnArray;
-      const dataArray = JSON.parse(dataArrayStr);
-
-      // For each data, look for quoted text with a JSON prefixed with some code
-      for (const data of dataArray) {
-        const re = /^\w+#\w+\|m\|(\{.*\})$/;
-        const result = re.exec(data);
-       
-        // If found, parse the JSON part and return the resulting object
-        if (result?.length) {
-          console.log("Correct result found in response");
-       
-          // Original sockjs code evals the string to get the value
-          const [,content] = result;
-          let parsed;
-          try {
-            parsed = JSON.parse( content );
-          } catch(err) {
-            console.warn("Consume: Error parsing JSON: ", {err, content, parsed});
-            throw err;
-          }
-       
-          console.log("Message received:", {parsed});
-       
-          // Test if request' final response validation passes
-          if (validate(parsed)) {
-            console.log("Final message received");
-            return parsed;
-          }
-          else {
-            console.log("Not validated");
-          }
-        }
-        else {
-          console.log("Not matched object:",{re,data,result});
-        }
-      }
+    // If parsed evaluates to true (an object), return valid response
+    // Other possible responses are:
+    // - null: transactional message: keep trying
+    // - false: error detected, try to handle
+    // - throw error: Error parsing one of the two JSON strings
+    if (parsedResponse) {
+      return parsedResponse;
     }
-    else {
-      console.log("Not matched Array:",{reUnArray,resultUnArray,received:{done,value}});
+
+    // If parsed is exactly false, it is an error message
+    // Try to handle it or rethrow if couldn't
+    else if (parsedResponse === false) {
+      console.log("Not matched Array:", {received: {done, value}});
+
+      const parsedError = await this.parseConsumeError(value);
+
+      // Only true is a good result
+      // Other results:
+      //  - false: Need to resend query
+      //  - throw error: Final fatal error: Something is very wrong
+      //  - throw error: Error parsing the JSON string
+      if (parsedError !== true) {
+        return parsedError;
+      }
     }
 
     // Try again with the next received line
@@ -216,9 +326,9 @@ class Socket {
     return await this.consume(validate);
   }
 
+  // Try to connect 3 times
+  // Re-throw the error on the last
   connectRetry = async (count=3) => {
-    // Try to connect 3 times
-    // Re-throw the error on the last
     try {
       await this.connect();
     } catch(err) {
@@ -229,10 +339,11 @@ class Socket {
       }
 
       // Re-try
-      await this.connectRetry(count-1);
+      await this.connectRetry(count - 1);
     }
   }
 
+  // Handle when connection is in bad/temporal state
   ensureConnection = async () => {
     // If the backend has disconnected, re-connect
     if (this.done === true || this.done === undefined) {
@@ -245,14 +356,27 @@ class Socket {
       console.log("Consume: Backend reconnecting. Wait for it.");
       await this.done;
     }
+  }
 
+  // Sends to server the requests to correctly initiate the session
+  // Used on hard reconnections
+  sendInitialRequests = async () => {
+    for (const request of this.initialRequests) {
+      const {payload, validate} = request;
+      await this.send(payload, validate);
+    }
   }
 
   // Send a request
-  send = async (payload, validate) => {
+  send = async (payload, validate, initial) => {
 
     // Ensure we have socket connected
     await this.ensureConnection();
+
+    // Save initial requests into a specialized array
+    if (initial) {
+      this.initialRequests.push({payload, validate});
+    }
 
     console.log(`Send query: POST ${this.url}: ${JSON.stringify([payload]).substring(0,80)}`);
     await fetch(this.url, {
@@ -266,17 +390,25 @@ class Socket {
     });
 
     // Handle possible server disconnections
+    var result;
     try {
 
-      return await this.consume(validate);
+      result = await this.consume(validate);
 
     } catch(err) {
 
-      console.log("Send: Error consuming:", err);
+      console.log("Send: Error consuming. Try to do soft reconnection.", err);
       await this.connect();
-      return await this.consume(validate);
+      result = await this.consume(validate);
 
     }
+
+    // If result is exactly `false`, we need to resend the query
+    if (result === false) {
+      return await this.send(payload, validate, initial);
+    }
+
+    return result;
   }
 }
 
