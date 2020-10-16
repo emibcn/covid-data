@@ -9,14 +9,20 @@ import Queries from './QueriesPlain.js';
 //
 
 // Menu
-import {findMenu, parseMenu} from './MenuHelpers.js';
+import {findMenu, parseMenu, parseOptions} from './MenuHelpers.js';
 
 //
 // Global helpers
 //
 
-// Save menu structured data to allow other requests to use its info
-let menu;
+const Globals = {
+  // Save menu structured data to allow other requests to use its info
+  menu: null,
+  // Save regions to ask for more data
+  paisos: null,
+  provincies: null,
+  municipis: null,
+};
 
 // Parses a graph: They all have the same shape
 const parseGraph = (graph, data) => ({
@@ -98,12 +104,15 @@ const RequestsList = [
       //console.dir(data,{depth: null});
 
       // Save in a global to allow other requests to use it's date
-      menu = parseMenu( data.values.sidebarMenuLeft.html );
+      Globals.menu = parseMenu( data.values.sidebarMenuLeft.html );
+      Globals.paisos = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PAI.html );
+      Globals.provincies = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PRO.html );
+      Globals.municipis = parseOptions( data.values.inputSeleccioIND_MOB_VIS_MUN.html );
 
       return {
         code: 'menu',
         type: 'menu',
-        menu,
+        ...Globals,
       };
     },
   },
@@ -156,7 +165,7 @@ const RequestsList = [
       //console.dir(data,{depth: null});
 
       // Get related menu item to get the dataset title
-      const menuOption = findMenu('mobilitatVehicles', menu);
+      const menuOption = findMenu('mobilitatVehicles', Globals.menu);
 
       // Transform data shape
       return {
@@ -182,7 +191,7 @@ const RequestsList = [
       //console.dir(data,{depth: null});
 
       // Get related menu item to get the dataset title
-      const menuOption = findMenu('consums', menu);
+      const menuOption = findMenu('consums', Globals.menu);
 
       // Transform data shape
       return {
@@ -208,7 +217,7 @@ const RequestsList = [
       //console.dir(data,{depth: null});
 
       // Get related menu item to get the dataset title
-      const menuOption = findMenu('preus', menu);
+      const menuOption = findMenu('preus', Globals.menu);
 
       // Transform data shape
       return {
@@ -220,6 +229,81 @@ const RequestsList = [
       };
     },
   },
+
+  // Visitants: Select all values from all chaarts before asking for the charts themselves
+  {
+    query: () => `7#0|m|${JSON.stringify({
+      method: "update",
+      data:{
+        selectMunicipis: Globals.municipis.map(m => m.code),
+        selectProvincies: Globals.provincies.map(m => m.code),
+        selectPaisos: Globals.paisos.map(m => m.code),
+      }
+    })}`,
+    force: true,
+    validate: (parsed) => parsed?.busy === 'idle' && true,
+    parse: (data, parseErrors) => {
+
+      // Log to visually find valuable data
+      console.dir(data,{depth: null});
+
+      // Transform data shape
+      return null;
+    },
+  },
+
+  // Visitants
+  {
+    query: `6#0|m|${Queries.mobilitatOrigens}`,
+    validate: (parsed) => parsed?.values && true,
+    parse: (data, parseErrors) => {
+
+      // Parse possible errors
+      parseErrors('Visitants', data.errors);
+
+      // Log to visually find valuable data
+      //console.dir(data,{depth: null});
+
+      // Get related menu item to get the dataset title
+      const menuOption = findMenu('mobilitatOrigens', Globals.menu);
+
+      // Transform data shape
+      return {
+        code: menuOption.code,
+        title: menuOption.name,
+        type: 'graph',
+        sections: ['IND_MOB_VIS_PRO','IND_MOB_VIS_MUN', 'IND_MOB_VIS_PAI']
+          .map(graph => parseGraph(graph, data)),
+      };
+    },
+  },
+
+  // Port & Aeroport
+  {
+    query: `6#0|m|${Queries.portAeroport}`,
+    validate: (parsed) => parsed?.values && true,
+    parse: (data, parseErrors) => {
+
+      // Parse possible errors
+      parseErrors('portAeroport', data.errors);
+
+      // Log to visually find valuable data
+      //console.dir(data,{depth: null});
+
+      // Get related menu item to get the dataset title
+      const menuOption = findMenu('portAeroport', Globals.menu);
+
+      // Transform data shape
+      return {
+        code: menuOption.code,
+        title: menuOption.name,
+        type: 'graph',
+        sections: ['IND_MOB_AERO_TOT', 'IND_MOB_AERO_DET', 'IND_MOB_PORT_SET', 'IND_MOB_PORT_TIP_VAI']
+          .map(graph => parseGraph(graph, data)),
+      };
+    },
+  },
+
 ];
 
 export default RequestsList;
