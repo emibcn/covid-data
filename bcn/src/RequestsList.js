@@ -54,7 +54,47 @@ const parseGraph = (graph, data) => ({
       ],
       dates: data.map( d => d.DadesVariableX ),
     }))
-})
+});
+
+const parseGraphResponseFactory = (name, menuCode, debug=false) => {
+  return (data, parseErrors) => {
+
+    // Parse possible errors
+    parseErrors(name, data.errors);
+
+    // Log to visually find valuable data
+    if (debug) {
+      console.dir(data, {depth: null});
+    }
+
+    // Get related menu item to get the dataset title
+    const menuOption = findMenu(menuCode, Globals.menu);
+
+    const rePlot = /^plot_/;
+
+    // Transform data shape
+    return {
+      code: menuOption.code,
+      title: menuOption.name,
+      type: 'graph',
+      sections: Object.keys(data.values)
+        // Detect graph in data
+        .filter( v => rePlot.test(v))
+
+        // Transform to graph code
+        .map( v => v.replace(rePlot, ''))
+
+        // Re-shape graph data
+        .map(graph => parseGraph(graph, data)),
+    };
+  }
+}
+
+const graphRequestFactory = (name, menuCode, query, debug=false) => ({
+  query,
+  validate: (parsed) => parsed?.values && true,
+  parse: parseGraphResponseFactory(name, menuCode),
+});
 
 const RequestsList = [
 
@@ -154,86 +194,17 @@ const RequestsList = [
   },
 
   // Mobility
-  {
-    query: `3#0|m|${Queries.mobility}`,
-    validate: (parsed) => parsed?.values && true,
-    parse: (data, parseErrors) => {
-
-      // Parse possible errors
-      parseErrors('Mobility', data.errors);
-
-      // Log to visually find valuable data
-      //console.dir(data,{depth: null});
-
-      // Get related menu item to get the dataset title
-      const menuOption = findMenu('mobilitatVehicles', Globals.menu);
-
-      // Transform data shape
-      return {
-        code: menuOption.code,
-        title: menuOption.name,
-        type: 'graph',
-        sections: ['IND_MOB_VEH_BCN','IND_MOB_TRA_ZBE', 'IND_MOB_TRA_PUB']
-          .map(graph => parseGraph(graph, data)),
-      };
-    },
-  },
+  graphRequestFactory('Mobility', 'mobilitatVehicles', `3#0|m|${Queries.mobility}`),
 
   // Consums
-  {
-    query: `4#0|m|${Queries.consums}`,
-    validate: (parsed) => parsed?.values && true,
-    parse: (data, parseErrors) => {
-
-      // Parse possible errors
-      parseErrors('Consum', data.errors);
-
-      // Log to visually find valuable data
-      //console.dir(data,{depth: null});
-
-      // Get related menu item to get the dataset title
-      const menuOption = findMenu('consums', Globals.menu);
-
-      // Transform data shape
-      return {
-        code: menuOption.code,
-        title: menuOption.name,
-        type: 'graph',
-        sections: ['IND_ECO_CON_MAT_VEH','IND_ECO_CON_AIG', 'IND_ECO_CON_PRE_IBE', 'IND_ECO_CON_ELE']
-          .map(graph => parseGraph(graph, data)),
-      };
-    },
-  },
+  graphRequestFactory('Consum', 'consums', `4#0|m|${Queries.consums}`),
 
   // Preus
+  graphRequestFactory('Preus', 'preus', `5#0|m|${Queries.preus}`),
+
+  // Visitants: Select all values from all charts before asking for the charts themselves
   {
-    query: `5#0|m|${Queries.preus}`,
-    validate: (parsed) => parsed?.values && true,
-    parse: (data, parseErrors) => {
-
-      // Parse possible errors
-      parseErrors('Consum', data.errors);
-
-      // Log to visually find valuable data
-      //console.dir(data,{depth: null});
-
-      // Get related menu item to get the dataset title
-      const menuOption = findMenu('preus', Globals.menu);
-
-      // Transform data shape
-      return {
-        code: menuOption.code,
-        title: menuOption.name,
-        type: 'graph',
-        sections: ['IND_ECO_PRE_CARB','IND_ECO_PRE_CARN', 'IND_ECO_PRE_PEI', 'IND_ECO_PRE_FRU']
-          .map(graph => parseGraph(graph, data)),
-      };
-    },
-  },
-
-  // Visitants: Select all values from all chaarts before asking for the charts themselves
-  {
-    query: () => `7#0|m|${JSON.stringify({
+    query: () => `6#0|m|${JSON.stringify({
       method: "update",
       data:{
         selectMunicipis: Globals.municipis.map(m => m.code),
@@ -246,64 +217,18 @@ const RequestsList = [
     parse: (data, parseErrors) => {
 
       // Log to visually find valuable data
-      console.dir(data,{depth: null});
+      //console.dir(data, {depth: null});
 
-      // Transform data shape
+      // Return nothing: only selecting next request' options
       return null;
     },
   },
 
   // Visitants
-  {
-    query: `6#0|m|${Queries.mobilitatOrigens}`,
-    validate: (parsed) => parsed?.values && true,
-    parse: (data, parseErrors) => {
-
-      // Parse possible errors
-      parseErrors('Visitants', data.errors);
-
-      // Log to visually find valuable data
-      //console.dir(data,{depth: null});
-
-      // Get related menu item to get the dataset title
-      const menuOption = findMenu('mobilitatOrigens', Globals.menu);
-
-      // Transform data shape
-      return {
-        code: menuOption.code,
-        title: menuOption.name,
-        type: 'graph',
-        sections: ['IND_MOB_VIS_PRO','IND_MOB_VIS_MUN', 'IND_MOB_VIS_PAI']
-          .map(graph => parseGraph(graph, data)),
-      };
-    },
-  },
+  graphRequestFactory('Visitants', 'mobilitatOrigens', `7#0|m|${Queries.mobilitatOrigens}`),
 
   // Port & Aeroport
-  {
-    query: `6#0|m|${Queries.portAeroport}`,
-    validate: (parsed) => parsed?.values && true,
-    parse: (data, parseErrors) => {
-
-      // Parse possible errors
-      parseErrors('portAeroport', data.errors);
-
-      // Log to visually find valuable data
-      //console.dir(data,{depth: null});
-
-      // Get related menu item to get the dataset title
-      const menuOption = findMenu('portAeroport', Globals.menu);
-
-      // Transform data shape
-      return {
-        code: menuOption.code,
-        title: menuOption.name,
-        type: 'graph',
-        sections: ['IND_MOB_AERO_TOT', 'IND_MOB_AERO_DET', 'IND_MOB_PORT_SET', 'IND_MOB_PORT_TIP_VAI']
-          .map(graph => parseGraph(graph, data)),
-      };
-    },
-  },
+  graphRequestFactory('Port & Aeroport', 'portAeroport', `8#0|m|${Queries.portAeroport}`),
 
 ];
 

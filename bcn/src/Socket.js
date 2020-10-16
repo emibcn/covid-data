@@ -230,9 +230,9 @@ class Socket {
 
   // Tries to parse a consume raw response
   // - On success, returns object response
-  // - If not array response (keepalive/ACK/error), returns false (wait for next or possible error)
-  // - If array but without object (lack examples) or with a not validated
-  //   object (busy,recalculating,recalculated, i...), returns null
+  // - If not array response (keepalive/error), returns false (wait for next or possible error)
+  // - If array but without object (ACK) or with a not validated
+  //   object (busy, recalculating, recalculated, ...), returns null (wait for next)
   parseConsumeResponse = (value, validate) => {
 
     // Parse "a[...]"
