@@ -1,4 +1,5 @@
 import GetAllChartData from "./src/index.js";
+import getBarris from "./src/barris.js";
 
 const cmdArgs = process.argv.slice(2);
 const baseHTMLFile = cmdArgs.length     ? cmdArgs[0] : 'cache';
@@ -9,7 +10,11 @@ console.log(process.env.NODE_ENV);
 
 try {
 
-  console.log("::group::Downloading log");
+  console.log("::group::Downloading maps assets");
+  await getBarris(baseHTMLFile, baseJSONFile, disableCache);
+  console.log("::endgroup::");
+
+  console.log("::group::Downloading BCN");
   const getter = new GetAllChartData({baseHTMLFile, baseJSONFile, disableCache});
   const { result, errors, counters }  = await getter.get();
   console.log("::endgroup::");
