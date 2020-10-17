@@ -121,7 +121,7 @@ class GetAllData {
       }
 
       // Do request parsing (already parsed the JSON)
-      const parsed = request.parse( data, this.parseDataErrors );
+      const parsed = await request.parse( data, this.parseDataErrors );
 
       // Increment downloaded counter only if it was ok
       this.counters.downloaded++;
