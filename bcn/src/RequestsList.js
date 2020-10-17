@@ -1,11 +1,12 @@
+// TODO: This file is getting big...
+// This is only needed for Node
+import fetch from 'cross-fetch';
+
 // Scraped from official web:
 // - Source at: https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn/
 // - Look in the development console (into the `Network` tab) for 'xhr' connections to 'https://.../xhr_send'
 // - We don't need them parsed, just as plain JSON strings
 import Queries from './QueriesPlain.js';
-
-// This is only needed for Node
-import fetch from 'cross-fetch';
 
 //
 // Requests/parsers helpers
@@ -16,6 +17,9 @@ import {findMenu, parseMenu, parseOptions} from './MenuHelpers.js';
 
 // CSV
 import csvToArray from './csvToArray.js';
+
+// Get barris metadata and SVG
+import getBarris from "./barris.js";
 
 //
 // Global helpers
@@ -104,26 +108,31 @@ const graphRequestFactory = (name, menuCode, query, debug=false) => ({
   parse: parseGraphResponseFactory(name, menuCode),
 });
 
-const parseMap = async (map, data) => {
-  // Fetch data from CSV file
+const parseMap = async (map, data, regions) => {
+  // Fetch data from CSV file at URL
   const fileUrl =
     "https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn/" +
     data.values[`botoDescarregaMapa_${map}`];
+
   console.log(`Fetch CSV file from ${fileUrl}`);
   const response = await fetch(fileUrl);
   const csvStr = await response.text();
-  const csvData = csvToArray( csvStr ).map( ({codi_barri, ...rest}) => ({
+
+  console.log(`Received data from ${fileUrl}`);
+
+  const csvData = csvToArray( csvStr )
     // Parse numbers in strings
-    codi_barri: Number(codi_barri),
-    ...rest,
-  }));
+    .map( ({codi_barri, ...rest}) => ({
+      codi_barri: Number(codi_barri),
+      ...rest,
+    }));
 
   // Log to visually find valuable data
-  console.log(`Received data from ${fileUrl}`);
   //console.dir(csvData, {depth: null});
 
   return {
     code: map,
+    regions,
     description: data.values[`txtDescripcio${map}`],
     title: data.values[`txtTitolDescripcio${map}`],
     source: parseSource(data.values[`txtFont${map}`]),
@@ -178,7 +187,7 @@ const RequestsList = [
     query: `1#0|m|${Queries.init}`,
     force: true, // Don't use cached data
     validate: (parsed) => parsed?.values && true,
-    parse: (data, parseErrors) => {
+    parse: async (data, parseErrors) => {
       // Parse possible errors, return nothing
       // Possible wanted static data:
       // - ...
@@ -192,11 +201,20 @@ const RequestsList = [
       Globals.paisos = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PAI.html );
       Globals.provincies = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PRO.html );
       Globals.municipis = parseOptions( data.values.inputSeleccioIND_MOB_VIS_MUN.html );
+      const {values, svg} = await getBarris({disableCache: true});
+      Globals.barris = values;
 
       return {
         code: 'menu',
         type: 'menu',
         ...Globals,
+        sections: [
+          {
+            code: 'barris',
+            extension: 'svg',
+            values: svg,
+          },
+        ]
       };
     },
   },
@@ -314,7 +332,7 @@ const RequestsList = [
               .map( v => v.replace(reMap, ''))
 
               // Re-shape graph data
-              .map((map) => parseMap(map, data))
+              .map((map) => parseMap(map, data, 'barris'))
             ),
       };
     },

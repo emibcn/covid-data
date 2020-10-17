@@ -87,8 +87,8 @@ const saveFile = async (file, content) => {
 }
 
 // Gets a page, from disk or downloading
-const getPage = async (cache, disableCache) => {
-  const file = `${cache}/barris.html`;
+const getPage = async ({cache, disableCache}) => {
+  const file = `${cache ?? '.'}/barris.html`;
 
   try {
     if (disableCache) {
@@ -108,16 +108,18 @@ const getPage = async (cache, disableCache) => {
     console.log("Response:",response);
 
     const page = await response.text();
-    await saveFile(file, page);
+    if (cache) {
+      await saveFile(file, page);
+    }
     return page;
   }
 }
 
 // Gets JSON and SVG barrios data
-const getBarris = async (cache, dest, disableCache) => {
+const getBarris = async (options) => {
 
   // Read or download page content
-  const page = await getPage(cache, disableCache);
+  const page = await getPage(options);
   
   // Get relevant page parts
   const part = page.replace(/[\s\S]*<li class="nav-item dropdown">([\s\S]*)<\/li>[ \t\r\n]*<\/ul>[ \t\r\n]*<div class="nav-item sn-mobile">[\s\S]*/m, '$1');
@@ -144,19 +146,16 @@ const getBarris = async (cache, dest, disableCache) => {
     barris.map( ({code, list}, index) => ({
       name: districtes.list.find(d => d.id === code).name,
       code: index + 1,
-      id: code,
-      list: list.map( ({code, ...rest}) => ({
+      sections: list.map( ({code, ...rest}) => ({
         code: Number(code),
         ...rest,
       })),
     }));
 
-  console.log(result);
-  
-  await saveFile(`${dest}/barris.json`, JSON.stringify(result));
-  await saveFile(`${dest}/barris.svg`, svg);
-
-  return result;
+  return {
+    values: result,
+    svg,
+  };
 }
 
 export default getBarris;
