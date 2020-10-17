@@ -121,7 +121,7 @@ class GetAllData {
       }
 
       // Do request parsing (already parsed the JSON)
-      const parsed = request.parse( data, this.parseDataErrors );
+      const parsed = await request.parse( data, this.parseDataErrors );
 
       // Increment downloaded counter only if it was ok
       this.counters.downloaded++;
@@ -177,12 +177,13 @@ class GetAllData {
     const files = [];
     const moveValuesToFile = (result, prefix='') => {
       if ('values' in result) {
-        const name = `${prefix}${result.code}.json`;
+        const name = `${prefix}${result.code}.${result.extension ?? 'json'}`;
         files.push({
           name,
           values: result.values,
         });
         result.values = name;
+        delete result.extension;
       }
     };
 
@@ -207,7 +208,9 @@ class GetAllData {
       try {
         await fs.writeFile(
           `${this.baseJSONFile}/${file.name}`,
-          JSON.stringify(file.values)
+          typeof file.values === 'string'
+            ? file.values
+            : JSON.stringify(file.values)
         );
       } catch(err) {
         console.error(err);

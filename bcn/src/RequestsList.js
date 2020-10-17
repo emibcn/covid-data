@@ -1,3 +1,7 @@
+// TODO: This file is getting big...
+// This is only needed for Node
+import fetch from 'cross-fetch';
+
 // Scraped from official web:
 // - Source at: https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn/
 // - Look in the development console (into the `Network` tab) for 'xhr' connections to 'https://.../xhr_send'
@@ -10,6 +14,12 @@ import Queries from './QueriesPlain.js';
 
 // Menu
 import {findMenu, parseMenu, parseOptions} from './MenuHelpers.js';
+
+// CSV
+import csvToArray from './csvToArray.js';
+
+// Get barris metadata and SVG
+import getBarris from "./barris.js";
 
 //
 // Global helpers
@@ -24,11 +34,17 @@ const Globals = {
   municipis: null,
 };
 
+const parseSource = (str) => ({
+  text: str.replace(/^.*<a[^>]*>([^<]*)<\/a>.*/, '$1'),
+  url: str.replace(/^.*<a [^>]*? href='([^']*)'>.*/, '$1'),
+});
+
 // Parses a graph: They all have the same shape
 const parseGraph = (graph, data) => ({
   code: graph,
   description: data.values[`txtDescripcio${graph}`],
   title: data.values[`txtTitolDescripcio${graph}`],
+  source: parseSource(data.values[`txtFont${graph}`]),
   theme: {
     colors: data.values[`plot_${graph}`].x.theme.colors,
     decimals: data.values[`plot_${graph}`].x.theme.tooltip.valueDecimals,
@@ -37,10 +53,6 @@ const parseGraph = (graph, data) => ({
     scale: data.values[`plot_${graph}`].x.hc_opts.plotOptions.treemap.layoutAlgorithm,
     type: data.values[`plot_${graph}`].x.hc_opts.yAxis.type,
     label: data.values[`plot_${graph}`].x.hc_opts.yAxis.title.text,
-  },
-  source: {
-    text: data.values[`txtFont${graph}`].replace(/^.*<a[^>]*>([^<]*)<\/a>.*/, '$1'),
-    url: data.values[`txtFont${graph}`].replace(/^.*<a [^>]*? href='([^']*)'>.*/, '$1'),
   },
   values: data.values[`plot_${graph}`].x.hc_opts.series
     .map(({name, type, tooltip, data}) => ({
@@ -96,6 +108,40 @@ const graphRequestFactory = (name, menuCode, query, debug=false) => ({
   parse: parseGraphResponseFactory(name, menuCode),
 });
 
+const parseMap = async (map, data, regions) => {
+  // Fetch data from CSV file at URL
+  const fileUrl =
+    "https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn/" +
+    data.values[`botoDescarregaMapa_${map}`];
+
+  console.log(`Fetch CSV file from ${fileUrl}`);
+  const response = await fetch(fileUrl);
+  const csvStr = await response.text();
+
+  console.log(`Received data from ${fileUrl}`);
+
+  const csvData = csvToArray( csvStr )
+    // Parse numbers in strings
+    .map( ({codi_barri, ...rest}) => ({
+      codi_barri: Number(codi_barri),
+      ...rest,
+    }));
+
+  // Log to visually find valuable data
+  //console.dir(csvData, {depth: null});
+
+  return {
+    code: map,
+    regions,
+    description: data.values[`txtDescripcio${map}`],
+    title: data.values[`txtTitolDescripcio${map}`],
+    source: parseSource(data.values[`txtFont${map}`]),
+    // TODO: Parse date
+    current: data.values[`txtSituacio${map}`].replace(/^<b>(.*?)<\/b>$/, '$1'),
+    values: csvData,
+  }
+};
+
 const RequestsList = [
 
   // 
@@ -119,7 +165,16 @@ const RequestsList = [
   {
     query: `0#0|o|`,
     force: true, // Don't use cached data
-    validate: (parsed) => parsed?.config && true,
+    validate: (parsed) => {
+      if (parsed?.config) {
+        // Save sessionId for further uses
+        // Do it in validation pass to update the sessionId on reconnect
+        Globals.session = parsed.config.sessionId;
+        return true;
+      }
+
+      return false;
+    },
     parse: (data) => {
       // Do nothing, return nothing
       // Not even possible data errors
@@ -132,28 +187,34 @@ const RequestsList = [
     query: `1#0|m|${Queries.init}`,
     force: true, // Don't use cached data
     validate: (parsed) => parsed?.values && true,
-    parse: (data, parseErrors) => {
+    parse: async (data, parseErrors) => {
       // Parse possible errors, return nothing
       // Possible wanted static data:
-      // - Municipis
-      // - Províncies
-      // - Paisos
       // - ...
       parseErrors('Initialization', data.errors);
 
       // Log to visually find valuable data
-      //console.dir(data,{depth: null});
+      //console.dir(data, {depth: null});
 
       // Save in a global to allow other requests to use it's date
       Globals.menu = parseMenu( data.values.sidebarMenuLeft.html );
       Globals.paisos = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PAI.html );
       Globals.provincies = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PRO.html );
       Globals.municipis = parseOptions( data.values.inputSeleccioIND_MOB_VIS_MUN.html );
+      const {values, svg} = await getBarris({disableCache: true});
+      Globals.barris = values;
 
       return {
         code: 'menu',
         type: 'menu',
         ...Globals,
+        sections: [
+          {
+            code: 'barris',
+            extension: 'svg',
+            values: svg,
+          },
+        ]
       };
     },
   },
@@ -168,13 +229,14 @@ const RequestsList = [
       parseErrors('Timeline', data.errors);
 
       // Log to visually find valuable data
-      //console.dir(data,{depth: null});
+      //console.dir(data, {depth: null});
 
       // Transform data shape
       return {
         code: 'timeline',
         title: data.values.txtTitolTimeline,
         type: 'timeline',
+        dates: data.values.timelineNoticies.x.items.map( d => d.start ),
         range: [ // Date range
           data.values.timelineNoticies.x.items[0].start,
           data.values.timelineNoticies.x.items[
@@ -230,6 +292,51 @@ const RequestsList = [
   // Port & Aeroport
   graphRequestFactory('Port & Aeroport', 'portAeroport', `8#0|m|${Queries.portAeroport}`),
 
+  // Defuncions
+  graphRequestFactory('Defuncions', 'defuncions', `9#0|m|${Queries.defuncions}`),
+
+
+  // Distribució Territorial
+  // Already collected data from barris.json/svg matches CSV codes
+  // No historical data found, yet. Should we accumulate across scrapings to generate one?
+  {
+    query: `10#0|m|${Queries.distribucioTerritorial}`,
+    force: true, // Need to initialize map to download it's CSV
+    validate: (parsed) => parsed?.values && true,
+    parse: async (data, parseErrors) => {
+
+      // Parse possible errors
+      parseErrors('DistribucioTerritorial', data.errors);
+
+      // Log to visually find valuable data
+      //console.dir(data, {depth: null});
+
+      // Get related menu item to get the dataset title
+      const menuOption = findMenu('distribucioTerritorial', Globals.menu);
+
+      const reMap = /^mapaBarris/;
+
+      // Transform data shape
+      return {
+        code: menuOption.code,
+        title: menuOption.name,
+        type: 'map',
+        sections:
+          // Wait to all parses to finish
+          await Promise.all(
+            Object.keys(data.values)
+              // Detect graph in data
+              .filter( v => reMap.test(v))
+
+              // Transform to graph code
+              .map( v => v.replace(reMap, ''))
+
+              // Re-shape graph data
+              .map((map) => parseMap(map, data, 'barris'))
+            ),
+      };
+    },
+  },
 ];
 
 export default RequestsList;

@@ -9,7 +9,7 @@ console.log(process.env.NODE_ENV);
 
 try {
 
-  console.log("::group::Downloading log");
+  console.log("::group::Downloading BCN");
   const getter = new GetAllChartData({baseHTMLFile, baseJSONFile, disableCache});
   const { result, errors, counters }  = await getter.get();
   console.log("::endgroup::");
