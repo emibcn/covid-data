@@ -2,13 +2,13 @@
 
 # Covid Data
 
-This repo is used to store and serve daily collected data from https://dadescovid.org (institutional data published by the __Generalitat de Catalunya__ ) into GitHub pages. The reasons for collecting this data are:
+This repo is used to store and serve daily collected data from https://dadescovid.org (institutional data published by the **Generalitat de Catalunya** ) and [Seguiment Covid19 BCN](https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn) (institutional data collected and published by the **Ajuntament de Barcelona**) into GitHub pages. The reasons for collecting this data are:
 - The data will be used from apps which don't need more than daily updates, like [Covid Data `Refactored`](https://emibcn.github.io/covid/), an [open source serverless Progressive Web Application](https://github.com/emibcn/covid)
 - Original data requests might be blocked by CORS or other technologies
 - Original servers and data might not be efficient enough
 - When applicable, normalize data from various servers
 
-The collected data is minimally adapted before publishing it:
+The collected data from https://dadescovid.cat is minimally adapted before publishing it:
 
 Maps:
 - Transform JS statements into JSON objects
@@ -17,6 +17,8 @@ Maps:
 Charts:
 - Transform JS statements into JSON objects
 - Transform HTML tags attributes and content into JSON structured data
+
+The collected data from [Seguiment Covid19 BCN](https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn) is deeply reshaped, throwing away the unneded/repetitive data.
 
 This repo might collect other data in the future, from the same server, it's [backend server](https://analisi.transparenciacatalunya.cat/) or from 3rd party servers (EU statistics servers? Data collection from other regions?).
 
