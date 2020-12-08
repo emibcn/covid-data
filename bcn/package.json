@@ -3,6 +3,6 @@
   "dependencies": {
     "abortcontroller-polyfill": "^1.5.0",
     "cross-fetch": "^3.0.6",
-    "htmlparser2": "^5.0.1"
+    "htmlparser2": "^6.0.0"
   }
 }
