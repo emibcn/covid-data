@@ -196,7 +196,7 @@ const RequestsList = [
       // Log to visually find valuable data
       //console.dir(data, {depth: null});
 
-      // Save in a global to allow other requests to use it's date
+      // Save in a global to allow other requests to use it's data
       Globals.menu = parseMenu( data.values.sidebarMenuLeft.html );
       Globals.paisos = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PAI.html );
       Globals.provincies = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PRO.html );
@@ -204,10 +204,13 @@ const RequestsList = [
       const {values, svg} = await getBarris({disableCache: true});
       Globals.barris = values;
 
+      // Remove `session` from saved data
+      const {session, ...globalsWithoutSession} = Globals;
+
       return {
         code: 'menu',
         type: 'menu',
-        ...Globals,
+        ...globalsWithoutSession,
         sections: [
           {
             code: 'barris',

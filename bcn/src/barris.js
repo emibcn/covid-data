@@ -87,6 +87,24 @@ const saveFile = async (file, content) => {
 }
 
 // Gets a page, from disk or downloading
+const getLatestDownload = async () => {
+  const file = '';
+  const urlCert = "http://www.camerfirma.com/certs/camerfirma_cserverii-2015.crt";
+
+  let cert;
+  try {
+    const response = await fetch(urlCert);
+    cert = await response.text();
+  } catch (err) {
+    throw new Error(`Downloading '${urlCert}' file: ${err.name}: ${err.message}`)
+  }
+
+  await saveFile(file, cert);
+
+  return file;
+}
+
+// Gets a page, from disk or downloading
 const getPage = async ({cache, disableCache}) => {
   const file = `${cache ?? '.'}/barris.html`;
 
@@ -99,24 +117,26 @@ const getPage = async ({cache, disableCache}) => {
   } catch (err) {
   
     // TODO: Parse HTTP HEAD `last-modified` before sending actual request
-    const response = await fetch(fileURL)
-      .catch(err => {
-        console.log("Fetch Iterator: Fetch: Error:", err);
-        throw err
-      });
+    let page;
+    try {
+      const response = await fetch(fileURL);
+      page = await response.text();
+    } catch (error) {
+      console.log("Fetch Iterator: Fetch: Error:", error);
+      throw error
+    }
 
-    console.log("Response:",response);
-
-    const page = await response.text();
+    // Save downloaded page for cache
     if (cache) {
       await saveFile(file, page);
     }
+
     return page;
   }
 }
 
 // Gets JSON and SVG barrios data
-const getBarris = async (options) => {
+const getBarrisOriginal = async (options) => {
 
   // Read or download page content
   const page = await getPage(options);
@@ -142,7 +162,7 @@ const getBarris = async (options) => {
   const [districtes, ...barris] = lists;
   
   // Reshape data
-  const result = 
+  const values =
     barris.map( ({code, list}, index) => ({
       name: districtes.list.find(d => d.id === code).name,
       code: index + 1,
@@ -153,9 +173,38 @@ const getBarris = async (options) => {
     }));
 
   return {
-    values: result,
+    values,
     svg,
   };
+}
+
+// Get barrios data from previous scrapped data
+const getBarrisLatestBackup = async () => {
+  // Get SVG
+  const svgUrl = "https://emibcn.github.io/covid-data/Bcn/menu-barris.svg";
+  const responseSvg = await fetch(svgUrl);
+  const svg = await responseSvg.text();
+
+  // Get JSON data
+  const dataUrl = "https://emibcn.github.io/covid-data/Bcn/index.json";
+  const response = await fetch(dataUrl);
+  const data = await response.json();
+  const menu = data.find( element => element.code === 'menu');
+
+  return {
+    values: menu.barris,
+    svg,
+  }
+}
+
+// Downloads fresh copy or previously downloaded in case of error
+const getBarris = async (options) => {
+  try {
+    return await getBarrisOriginal(options);
+  } catch (err) {
+    console.warn(`Barris: Original download failed with '${err.name}: ${err.message}'. Download from previous scrapping process.`);
+    return await getBarrisLatestBackup();
+  }
 }
 
 export default getBarris;
