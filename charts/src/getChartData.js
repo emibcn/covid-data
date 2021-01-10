@@ -1,14 +1,9 @@
 import {promises as fs, constants} from "fs";
-// Use Node fetch
-import fetch from 'cross-fetch';
 
-import parseStatic from "./parseStatic.js";
-import parseChart from "./parseChart.js";
+import fetchRetry from './fetchRetry.js';
+import parse from "./parse.js";
 
 const baseUrl = "https://dadescovid.cat";
-
-// Promise based setTimeout (async/await compatible)
-const wait = millis => new Promise(resolve => setTimeout(resolve, millis) );
 
 // Transform a string into a smaller/hash one of it
 // Remove garbage chars to prevent hash changing to the same url
@@ -62,48 +57,6 @@ class GetChartData {
     this.baseJSONFile = baseJSONFile;
   }
 
-  // Parses all the data from a page into a single JSON object
-  parse = (data, processStatic=true) => {
-    return {
-      ...(processStatic ? {staticData: parseStatic(data)} : {}),
-      chartData: parseChart(data),
-    }
-  };
-
-  // Raises exception on response error
-  handleFetchErrors = (response) => {
-    // Raise succeeded non-ok responses
-    if ( !response.ok ) {
-      throw new Error(response.statusText);
-    }
-    return response;
-  }
-
-  // Fetch an endpoint, retrying `retries` times before giving up
-  // Wait random periods between tries
-  fetchRetry = async (url, options, retries=20) => {
-    try {
-      const response = await fetch(url, options);
-      this.handleFetchErrors(response);
-      return response
-    } catch(err) {
-      // No more retries left
-      if (retries === 1) {
-        throw err;
-      }
-
-      // Wait randomly between 10 and 20 seconds
-      const [MIN_WAIT, MARGIN_WAIT] = [10_000, 10_000];
-      const millis = Math.floor((Math.random() * MARGIN_WAIT + MIN_WAIT));
-      console.log(`Warning '${url}' failed (${retries-1} retries left, wait ${millis/1_000}): ${err.name}: ${err.message}`);
-      await wait( millis );
-
-      // Retry download
-      console.log(`Retry ${retries-1} '${url}'...`);
-      return await this.fetchRetry(url, options, retries - 1);
-    }
-  }
-
   // Gets chart data:
   // - If file exists, parses its content;
   // - Else, downloads it, saves it to the file and parses that
@@ -139,7 +92,7 @@ class GetChartData {
 
       // Try to download a fresh copy from web
       try {
-        const response = await this.fetchRetry(`${baseUrl}${url}`);
+        const response = await fetchRetry(`${baseUrl}${url}`);
         data = await response.text();
       } catch(err) {
         throw new Error(`Downloading '${url}': ${err.name}: ${err.message}`)
@@ -171,7 +124,7 @@ class GetChartData {
     // Try to parse page
     let parsed;
     try {
-      parsed = await this.parse(data, processStatic);
+      parsed = await parse(data, processStatic);
     } catch (err) {
       throw new Error(`Parsing '${url}': ${err.name}: ${err.message}`)
     }
@@ -204,4 +157,4 @@ class GetChartData {
 }
 
 export default GetChartData;
-export {wait, hashStr};
+export {hashStr};

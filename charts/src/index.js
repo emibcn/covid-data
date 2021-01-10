@@ -1,6 +1,7 @@
 import {promises as fs, constants} from "fs";
 
-import GetChartData, {wait, hashStr} from './getChartData.js';
+import GetChartData, {hashStr} from './getChartData.js';
+import {wait} from './fetchRetry.js';
 
 // Downloads all charts data, getting all links from combining form options
 //
