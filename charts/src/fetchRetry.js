@@ -23,27 +23,33 @@ const fetchRetry = async (
     ...options
   }={}) => {
   try {
+
     const response = await fetch(url, options);
     handleFetchErrors(response);
     return response
+
   } catch(err) {
+
+    const nextRetries = retries - 1;
+
     // No more retries left
-    if (retries === 1) {
+    if (nextRetries === 0) {
+      console.error(`Error: '${url}': No more retries left.`);
       throw err;
     }
 
     // Wait randomly between 10 and 20 seconds
     const millis = Math.floor((Math.random() * retryMarginWait + retryMinWait));
-    console.log(`Warning '${url}' failed (${retries-1} retries left, wait ${millis/1_000}): ${err.name}: ${err.message}`);
+    console.warn(`Warning '${url}' failed (${nextRetries} retries left, wait ${millis/1_000}): ${err.name}: ${err.message}`);
     await wait( millis );
 
     // Retry download
-    console.log(`Retry ${retries-1} '${url}'...`);
+    console.log(`Retry ${nextRetries} '${url}'...`);
     return await fetchRetry(url, {
       ...options,
-      retries: retries - 1,
-      retryMarginWait,
+      retries: nextRetries,
       retryMinWait,
+      retryMarginWait,
     });
   }
 }

@@ -32,7 +32,8 @@ const hashStr = (str='') => {
 //     - Only if cached file was not found
 //     - If downloaded, save cache file using HASH as name
 //     - If there is an error downloading, retry several times
-//       awaiting some time betwen retries before giving up
+//       awaiting some time betwen retries before giving up.
+//       Configurable passing `fetchOptions` to constructor.
 // - Parses data:
 //   - Static data:
 //     - Conditionally by argument (default: true)
@@ -52,9 +53,10 @@ class GetChartData {
   baseHTMLFile = '';
   baseJSONFile = '';
 
-  constructor({baseHTMLFile, baseJSONFile}) {
+  constructor({ baseHTMLFile, baseJSONFile, fetchOptions={} }={}) {
     this.baseHTMLFile = baseHTMLFile;
     this.baseJSONFile = baseJSONFile;
+    this.fetchOptions = fetchOptions;
   }
 
   // Gets chart data:
@@ -92,7 +94,7 @@ class GetChartData {
 
       // Try to download a fresh copy from web
       try {
-        const response = await fetchRetry(`${baseUrl}${url}`);
+        const response = await fetchRetry(`${baseUrl}${url}`, this.fetchOptions);
         data = await response.text();
       } catch(err) {
         throw new Error(`Downloading '${url}': ${err.name}: ${err.message}`)
@@ -140,9 +142,9 @@ class GetChartData {
           url
         })
       );
+
     } catch(err) {
       throw new Error(`Saving JSON for '${url}': ${err.name}: ${err.message}`)
-      throw error
     }
 
     // Increment processed counter only if everything was ok

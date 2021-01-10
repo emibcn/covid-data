@@ -64,7 +64,7 @@ class GetAllChartData {
 
   // Generate download promises for all region links from a list of pages
   collectRegionLinksFromList = (list) => {
-    list.map( link => this.collectRegionLinks(link.content) )
+    list.map( ({content}) => this.collectRegionLinks(content) )
   }
 
   // Download all the variants of a list and wait for them
