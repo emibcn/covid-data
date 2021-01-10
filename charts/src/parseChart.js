@@ -1,10 +1,10 @@
 /**********************************
    Helper functions
 */
-// Gets a part beginning with `<h4>` + text and ending with a `</div>\n\n`
+// Gets a part beginning with `<h4>` + text and ending with a `\n</div>\n\n`
 // Used for getting seguiment and situació blocks
 const get_part = (data, text) => {
-  const search = new RegExp(`[\\s\\S]*?<h4>(${text} [\\s\\S]*?)</div>\n\n[\\s\\S]*`, 'm');
+  const search = new RegExp(`[\\s\\S]*?<h4>(${text} [\\s\\S]*?)\n</div>\n\n[\\s\\S]*`, 'm');
   const part = data.replace(search, "$1");
   return part
 }
@@ -43,7 +43,9 @@ const parse_seguiment_headers = (data) => {
     // Normalize `title` attr to always use double quotes
     .replace(/title='([^']*)'/g, 'title="$1"')
     // Remove newlines and extra spaces
-    .replace(/\n\s*/g, '')
+    .replace(/\n\s*</g, '<')
+    .replace(/\n\s*([^<])/g, ' $1')
+    .replace(/>\s*/g, '>')
     // Parse <th> elements, saving `title` attr value and tag content
     .matchAll(/<th(?:| .*? title="([^"]*)")>([^<]*)<\/th>/g);
   return Array.from(
@@ -72,8 +74,10 @@ const parse_seguiment_body = (data) => {
     // Move span' content outside (and remove span tag)
     .replace(/<span[^>]*>([^<]*)<\/span>/g, '$1')
     // Remove newlines and extra spaces
-    .replace(/\n\s*/g, '')
-    // Parse <tr> elements, saving `title` attr value and tag content
+    .replace(/\n\s*</g, '<')
+    .replace(/\n\s*([^<])/g, ' $1')
+    .replace(/>\s*/g, '>')
+    // Parse <tr> elements, saving tag content
     .matchAll(/<tr[^>]*>(.*?)<\/tr>/g);
   return Array.from(result, ([match, content]) => {
     // Parse <td> elements, saving `title` attr value and tag content
@@ -126,8 +130,10 @@ const parse_situacio_elements = (data) => {
     .replace(/<t[hd][^>]*>([^<]*)<\/t[hd]>/g, '$1')
     // Same for tr elements
     .replace(/<tr[^>]*>([^<]*)<\/tr>/g, '$1')
-    // Remove newlines ans extra spaces
-    .replace(/\n\s*/g, '')
+    // Remove newlines and extra spaces
+    .replace(/\n\s*</g, '<')
+    .replace(/\n\s*([^<])/g, ' $1')
+    .replace(/>\s*/g, '>')
     // Parse <table> elements, saving `title` attr value, thead child content and tbody child content
     .matchAll(/<table .*?(?:| title="([^"]*)")><thead[^>]*>(.*?)<\/thead><tbody>(.*?)<\/tbody><\/table>/g);
   return Array.from(
@@ -135,8 +141,8 @@ const parse_situacio_elements = (data) => {
     ([match, title, name, value]) => ({
       // If title exists, parse as ul/li HTML list
       ...(title ? {detail: parse_situacio_title(title)} : {}),
-      name,
-      value: parseNumber(value)
+      name: name.trim(),
+      value: parseNumber(value.trim())
     })
   );
 }
