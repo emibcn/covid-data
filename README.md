@@ -27,13 +27,13 @@ This repo might collect other data in the future, from the same server, it's [ba
 This process is executed from a [GitHub Workflow](./.github/workflows/get-maps-and-charts.yml) (`cron` scheduled some minuts after official data publication at 10am CEST). Once the data is obtained, deploy it to this repo' GitHub Pages in the `gh-pages` branch.
 
 ## Maps
-The data is collected by an ugly [BASH sccript](./bin/download-map-data.sh). This script collects the interesting parts (maps SVG source, JS code with data on it) and saves them into files. The SVG files are saved transparently. The JS files are executed with NODE to ouput the collected data as JSON.
+The data is collected by an ugly [BASH script](./bin/download-map-data.sh). This script collects the interesting parts (maps SVG source, JS code with data on it) and saves them into files. The SVG files are saved transparently. The JS files are executed with NODE to ouput the collected data as JSON.
 
 ## Charts
-The data is collected by a [nice NodeJS package](./charts/). This script scrapes data from HTML tags and JS code. It generates individual JSON files for each region/population selectors, and a global JSON index file with the regions recursive structure and all the download links. Deep use of `async`/`await`.
+The data is collected by a [NodeJS package](./charts/). This script scrapes data from HTML tags and JS code. It generates individual JSON files for each region/population selectors, and a global JSON index file with the regions recursive structure and all the download links. Deep use of `async`/`await`.
 
 ## Barcelona
-The data is collected by a [nice NodeJS package](./bcn/). This script uses a self made version of [SockJS](./bcn/src/Socket.js) to scrape data from a [RStudio/Shiny](https://github.com/rstudio/shiny) server. It generates individual JSON files for each datasource or datasource section, and a global JSON index file with the data and all the download links. Deep use of `async`/`await`. Some use of Streams and Iterator Generator. Very funny stuff!
+The data is collected by a [nice NodeJS package](./bcn/). This script uses a self made version of [SockJS](./bcn/src/Socket.js) to scrape data from a [RStudio/Shiny](https://github.com/rstudio/shiny) server. It generates individual JSON files for each datasource or datasource section, and a global JSON index file with the data and all the download links. Deep use of `async`/`await`. Some use of Streams and Iterator Generator and deep use of `async`/`await`. Very funny stuff!
 
 # License
 
