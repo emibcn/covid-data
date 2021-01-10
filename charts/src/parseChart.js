@@ -42,7 +42,7 @@ const parse_seguiment_headers = (data) => {
   const result = get_tag_content(data, 'thead')
     // Normalize `title` attr to always use double quotes
     .replace(/title='([^']*)'/g, 'title="$1"')
-    // Remove newlines ans extra spaces
+    // Remove newlines and extra spaces
     .replace(/\n\s*/g, '')
     // Parse <th> elements, saving `title` attr value and tag content
     .matchAll(/<th(?:| .*? title="([^"]*)")>([^<]*)<\/th>/g);
@@ -71,7 +71,7 @@ const parse_seguiment_body = (data) => {
     .replace(/<strong>\*<\/strong>/g, '')
     // Move span' content outside (and remove span tag)
     .replace(/<span[^>]*>([^<]*)<\/span>/g, '$1')
-    // Remove newlines ans extra spaces
+    // Remove newlines and extra spaces
     .replace(/\n\s*/g, '')
     // Parse <tr> elements, saving `title` attr value and tag content
     .matchAll(/<tr[^>]*>(.*?)<\/tr>/g);

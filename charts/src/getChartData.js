@@ -7,6 +7,51 @@ import parseChart from "./parseChart.js";
 
 const baseUrl = "https://dadescovid.cat";
 
+// Promise based setTimeout (async/await compatible)
+const wait = millis => new Promise(resolve => setTimeout(resolve, millis) );
+
+// Transform a string into a smaller/hash one of it
+// Remove garbage chars to prevent hash changing to the same url
+const hashStr = (str='') => {
+  if (str.length === 0) {
+    return 0;
+  }
+
+  return [...`${str}`.replace(/&id_html=[^&]*/, '')]
+    .map( char => char.charCodeAt(0) )
+    .reduce( (hash, int) => {
+      const hashTmp = ((hash << 5) - hash) + int;
+      return hashTmp & hashTmp; // Convert to 32bit integer
+    }, 0)
+}
+
+
+//
+// Getter and parser for URLs (one by one)
+// Writes to files cache and JSON statistical data
+//
+// - Gets data:
+//   - Creates a HASH with the URL (deduplicating)
+//   - Reads from cached file with HASH as name
+//   - Reads from downloaded data from URL:
+//     - Only if cached file was not found
+//     - If downloaded, save cache file using HASH as name
+//     - If there is an error downloading, retry several times
+//       awaiting some time betwen retries before giving up
+// - Parses data:
+//   - Static data:
+//     - Conditionally by argument (default: true)
+//     - Indexes the links from the menu, with recursing regions list,
+//       using HASH as URL instead of the original URL
+//     - Varies depending on the options selected in the URL:
+//       - Needs to be parsed -almost- once for each combination
+//         of (region type) x (population type)
+//     - Returned to callee, letting it know the collected URLs to be parsed
+//   - Chart data:
+//     - Always parsed
+//     - Statistics data used in the web app widgets
+//     - Save JSON into a file, using HASH as file name
+//     - NOT returned to callee (only saved into JSON file)
 class GetChartData {
 
   baseHTMLFile = '';
@@ -34,55 +79,36 @@ class GetChartData {
     return response;
   }
 
-  // Promise based setTimeout (async/await compatible)
-  wait = (seconds) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => resolve(), seconds);
-    });
-  }
-
-  // Transform a string into a smaller/hash one of it
-  // Remove garbage chars to prevent hash changing to the same url
-  hashStr = (str='') => {
-    if (str.length === 0) {
-      return 0;
-    }
-  
-    return [...str.replace(/&id_html=[^&]*/, '')]
-      .map( char => char.charCodeAt(0) )
-      .reduce( (hash, int) => {
-        const hashTmp = ((hash << 5) - hash) + int;
-        return hashTmp & hashTmp; // Convert to 32bit integer
-      }, 0)
-  }
-
-  // Fetch an endpoint, retrying `n` times before giving up
+  // Fetch an endpoint, retrying `retries` times before giving up
   // Wait random periods between tries
-  fetch_retry = async (url, options, n=20) => {
+  fetchRetry = async (url, options, retries=20) => {
     try {
-      return await fetch(url, options).then( this.handleFetchErrors )
+      const response = await fetch(url, options);
+      this.handleFetchErrors(response);
+      return response
     } catch(err) {
       // No more retries left
-      if (n === 1) {
+      if (retries === 1) {
         throw err;
       }
 
-      // Wait randomly between 20 and 40 seconds
-      const millis = Math.floor((Math.random() * 20_000 + 20_000));
-      console.log(`Warning '${url}' failed (${n-1} retries left, wait ${millis/1_000}): ${err.name}: ${err.message}`);
-      await this.wait( millis );
+      // Wait randomly between 10 and 20 seconds
+      const [MIN_WAIT, MARGIN_WAIT] = [10_000, 10_000];
+      const millis = Math.floor((Math.random() * MARGIN_WAIT + MIN_WAIT));
+      console.log(`Warning '${url}' failed (${retries-1} retries left, wait ${millis/1_000}): ${err.name}: ${err.message}`);
+      await wait( millis );
 
       // Retry download
-      console.log(`Retry ${n-1} '${url}'...`);
-      return await this.fetch_retry(url, options, n - 1);
+      console.log(`Retry ${retries-1} '${url}'...`);
+      return await this.fetchRetry(url, options, retries - 1);
     }
   }
 
   // Gets chart data:
   // - If file exists, parses its content;
   // - Else, downloads it, saves it to the file and parses that
-  // Finally, save resulting JS object into a JSON file
-  // Keeps a global counter of downloaded pages and processed data's
+  // - Finally, save resulting JS object into a JSON file
+  // - Keeps a global counter of downloaded pages and processed data's
   counters = {
     downloaded: 0,
     read: 0,
@@ -90,14 +116,14 @@ class GetChartData {
   };
 
   // Try to read data from cached file or download from web
-  read_or_download = async (url) => {
-    const file = `${this.baseHTMLFile}/index.html${url.replace('/', '_')}`;
+  readOrDownload = async (url, hash) => {
+    const file = `${this.baseHTMLFile}/index.html${hash}`;
     let data;
 
     // Try to read data from cached file
     try {
       await fs.access(file, constants.F_OK);
-      console.log(`The file '${file}' exists.`);
+      console.log(`The file '${file}' exists. DON'T fetch '${url}'`);
       try {
         data = await fs.readFile(file, 'utf8');
       } catch (err) {
@@ -113,8 +139,7 @@ class GetChartData {
 
       // Try to download a fresh copy from web
       try {
-        const response = await  this.fetch_retry(`${baseUrl}${url}`)
-        this.handleFetchErrors(response);
+        const response = await this.fetchRetry(`${baseUrl}${url}`);
         data = await response.text();
       } catch(err) {
         throw new Error(`Downloading '${url}': ${err.name}: ${err.message}`)
@@ -124,7 +149,7 @@ class GetChartData {
       try {
         await fs.writeFile(file, data);
       } catch(err) {
-        throw new Error(`Saving cache for '${url}': ${err.name}: ${err.message}`)
+        throw new Error(`Saving cache for '${url}' to '${file}': ${err.name}: ${err.message}`)
       }
 
       // Increment downloaded counter only if it was ok
@@ -137,8 +162,11 @@ class GetChartData {
   // Reads or downloads a page URL content and parses it
   get = async (url='', processStatic=true) => {
 
+    // URL shortener for file name
+    const hash = `?${hashStr(url)}`;
+
     // Try to read data from cached file or download from web
-    const data = await this.read_or_download(url);
+    const data = await this.readOrDownload(url, hash);
 
     // Try to parse page
     let parsed;
@@ -151,8 +179,6 @@ class GetChartData {
     // Save parsed JSON chart data to file
     const {chartData, staticData} = parsed;
     try {
-      // URL shortener for file name
-      const hash = `?${this.hashStr(url)}`;
 
       await fs.writeFile(
         `${this.baseJSONFile}/chart.json${hash}`,
@@ -178,3 +204,4 @@ class GetChartData {
 }
 
 export default GetChartData;
+export {wait, hashStr};

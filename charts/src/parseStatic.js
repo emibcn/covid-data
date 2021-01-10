@@ -1,6 +1,6 @@
 // Transforms `<a href="$url">$name</a>` list into objects list
 // When `withChildren == true`:
-//  - More indented links as treated as child of previous less indented item
+//  - More indented links are treated as child of previous less indented item
 //  - All first level links have `children` property, even if empty
 //  - All second level links may have `children` property
 const parse_links_to_list = (links, withChildren = false) => {
