@@ -264,12 +264,15 @@ const RequestsList = [
   // Consums
   graphRequestFactory('Consum', 'consums', `4#0|m|${Queries.consums}`),
 
-  // Preus
-  graphRequestFactory('Preus', 'preus', `5#0|m|${Queries.preus}`),
+  // Preus: Alimentacio
+  graphRequestFactory('Alimentació', 'alimentacio', `5#0|m|${Queries.alimentacio}`),
+
+  // Preus: Subministraments
+  graphRequestFactory('Subministraments', 'subministraments', `6#0|m|${Queries.subministraments}`),
 
   // Visitants: Select all values from all charts before asking for the charts themselves
   {
-    query: () => `6#0|m|${JSON.stringify({
+    query: () => `7#0|m|${JSON.stringify({
       method: "update",
       data:{
         selectMunicipis: Globals.municipis.map(m => m.code),
@@ -290,20 +293,20 @@ const RequestsList = [
   },
 
   // Visitants
-  graphRequestFactory('Visitants', 'mobilitatOrigens', `7#0|m|${Queries.mobilitatOrigens}`),
+  graphRequestFactory('Visitants', 'mobilitatOrigens', `8#0|m|${Queries.mobilitatOrigens}`),
 
   // Port & Aeroport
-  graphRequestFactory('Port & Aeroport', 'portAeroport', `8#0|m|${Queries.portAeroport}`),
+  graphRequestFactory('Port & Aeroport', 'portAeroport', `9#0|m|${Queries.portAeroport}`),
 
   // Defuncions
-  graphRequestFactory('Defuncions', 'defuncions', `9#0|m|${Queries.defuncions}`),
+  graphRequestFactory('Defuncions', 'defuncions', `A#0|m|${Queries.defuncions}`),
 
 
   // Distribució Territorial
   // Already collected data from barris.json/svg matches CSV codes
   // No historical data found, yet. Should we accumulate across scrapings to generate one?
   {
-    query: `10#0|m|${Queries.distribucioTerritorial}`,
+    query: `B#0|m|${Queries.distribucioTerritorial}`,
     force: true, // Need to initialize map to download it's CSV
     validate: (parsed) => parsed?.values && true,
     parse: async (data, parseErrors) => {
