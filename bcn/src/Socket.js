@@ -227,16 +227,12 @@ class Socket {
       const dataObject = this.parseMessageStr(value, /^[0-9A-F]*#[0-9A-F]*\|c\|({.*})$/);
       if (dataObject !== false) {
         const {code, reason} = dataObject;
-
         console.error(`Error received from server: ${code} - ${reason}`);
-
+        throw new Error(`Connection FATAL error: ${code} - ${reason}`);
+      }
+      else {
         // We need a complete new connection
         console.log(`Complete connection restart forced.`);
-        await this.close();
-        this.generateConnectionString();
-        await this.connect();
-
-        return false;
       }
     }
 
@@ -249,7 +245,7 @@ class Socket {
   // - If not array response (keepalive/error), returns false (wait for next or possible error)
   // - If array but without object (ACK) or with a not validated
   //   object (busy, recalculating, recalculated, ...), returns null (wait for next)
-  parseConsumeResponse = (value, validate) => {
+  parseConsumeResponse = async (value, validate) => {
 
     // Parse "a[...]"
     const dataArray = this.parseMessageStr(value, /^a(\[.*\])$/);
@@ -278,6 +274,10 @@ class Socket {
         }
         else {
           console.log("Not matched object:",{data});
+          const success = await this.parseConsumeError(data);
+          if(!success) {
+            return false;
+          }
         }
       }
     }
@@ -309,7 +309,7 @@ class Socket {
     });
 
     // Tries to parse and validate a correct message string
-    const parsedResponse = this.parseConsumeResponse(value, validate);
+    const parsedResponse = await this.parseConsumeResponse(value, validate);
 
     // If parsed evaluates to true (an object), return valid response
     // Other possible responses are:
