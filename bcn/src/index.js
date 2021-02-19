@@ -59,6 +59,12 @@ class GetAllData {
       this.errors.count += errors.length;
       this.errors.messages.push(combined);
     }
+    else if ('custom' in errors) {
+      const title = `Errors found in '${name}' data fetch:\n - ${errors.custom.alert}`;
+      console.warn(title);
+      this.errors.count++;
+      this.errors.messages.push(title);
+    }
   }
 
   // Handles a single request process

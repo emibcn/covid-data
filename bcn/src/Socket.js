@@ -223,6 +223,22 @@ class Socket {
         throw new Error(`Connection FATAL error: ${code} - ${error}`);
       }
     }
+    else {
+      const dataObject = this.parseMessageStr(value, /^[0-9A-F]*#[0-9A-F]*\|c\|({.*})$/);
+      if (dataObject !== false) {
+        const {code, reason} = dataObject;
+
+        console.error(`Error received from server: ${code} - ${reason}`);
+
+        // We need a complete new connection
+        console.log(`Complete connection restart forced.`);
+        await this.close();
+        this.generateConnectionString();
+        await this.connect();
+
+        return false;
+      }
+    }
 
     // We can continue consuming normally
     return true;
