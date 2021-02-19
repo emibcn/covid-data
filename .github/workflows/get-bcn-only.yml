@@ -1,0 +1,55 @@
+name: Download BCN data from backend and publish with GitHub Pages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download:
+    name: Download data from servers
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+
+    # Get master branch to get executable
+    - uses: actions/checkout@v2
+      with:
+        ref: master
+
+    # Get GitHub current data
+    - uses: actions/checkout@v2
+      with:
+        ref: gh-pages
+        path: newData
+
+    # Used to transform JS (original data format) into JSON
+    - name: Use Node.js 14.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: 14.x
+
+    - name: Prepare destination environment
+      run: |
+        mkdir -p newData
+        rm -Rf newData/.git newData/Bcn
+
+    - name: Download Barcelona data and transform to JSON
+      run: |
+        mkdir -p newData/Bcn cache
+
+        # Install node dependencies (fetch)
+        pushd bcn
+            npm install
+        popd
+
+        # Do the job
+        node bcn/index.js cache newData/Bcn
+
+    - name: Deploy to GitHub Pages
+      if: success()
+      uses: crazy-max/ghaction-github-pages@v2
+      with:
+        target_branch: gh-pages
+        build_dir: newData
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
