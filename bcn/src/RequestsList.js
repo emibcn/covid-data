@@ -301,12 +301,15 @@ const RequestsList = [
   // Defuncions
   graphRequestFactory('Defuncions', 'defuncions', `A#0|m|${Queries.defuncions}`),
 
+  // Vacunació Acumulada
+  graphRequestFactory('Vacunació Acumulada', 'vacunacioAcumulada', `B#0|m|${Queries.vacunacioAcumulada}`),
+
 
   // Distribució Territorial
   // Already collected data from barris.json/svg matches CSV codes
   // No historical data found, yet. Should we accumulate across scrapings to generate one?
   {
-    query: `B#0|m|${Queries.distribucioTerritorial}`,
+    query: `C#0|m|${Queries.distribucioTerritorial}`,
     force: true, // Need to initialize map to download it's CSV
     validate: (parsed) => parsed?.values && true,
     parse: async (data, parseErrors) => {
