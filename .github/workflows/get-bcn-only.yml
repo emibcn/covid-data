@@ -30,7 +30,6 @@ jobs:
 
     - name: Prepare destination environment
       run: |
-        mkdir -p newData
         rm -Rf newData/.git newData/Bcn
 
     - name: Download Barcelona data and transform to JSON

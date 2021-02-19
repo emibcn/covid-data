@@ -1,4 +1,4 @@
-name: Download BCN data from backend and publish with GitHub Pages
+name: Download Maps data from backend and publish with GitHub Pages
 
 on:
   workflow_dispatch:
