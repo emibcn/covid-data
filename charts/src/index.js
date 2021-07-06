@@ -48,7 +48,7 @@ class GetAllChartData {
 
   // Downloads links from collected generators, rate limited
   downloadCollectedRegionLinks = async () => {
-    const MAX_REQUESTS_PER_SECOND = 1.8;
+    const MAX_REQUESTS_PER_SECOND = 1.3;
     const delay = Math.floor( 1000/MAX_REQUESTS_PER_SECOND );
     const pending = [];
 
