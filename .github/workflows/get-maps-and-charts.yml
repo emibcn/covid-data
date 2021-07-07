@@ -49,8 +49,22 @@ jobs:
             npm install
         popd
 
-        # Do the job
-        node charts/index.js cache newData/Charts
+        # Do the job until finished correctly
+        MAX=5
+        WAIT=60
+        while ! node charts/index.js cache newData/Charts
+        do
+            echo "[WARNING] Some files were not downloaded."
+
+            if (( DONE++ >= MAX ))
+            then
+                echo "[ERROR] Max reties ${DONE}/${MAX} reached. Exiting." >&2
+                exit 1
+            fi
+
+            echo "[WARNING] Retrying ${DONE}/${MAX} in ${WAIT} seconds..."
+            sleep ${WAIT}
+        done
 
     - name: Download Barcelona data and transform to JSON
       run: |
