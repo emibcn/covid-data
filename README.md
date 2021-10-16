@@ -3,6 +3,7 @@
 # Covid Data
 
 This repo is used to store and serve daily collected data from https://dadescovid.org (institutional data published by the **Generalitat de Catalunya** ) and [Seguiment Covid19 BCN](https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn) (institutional data collected and published by the **Ajuntament de Barcelona**) into GitHub pages. The reasons for collecting this data are:
+
 - The data will be used from apps which don't need more than daily updates, like [Covid Data `Refactored`](https://emibcn.github.io/covid/), an [open source serverless Progressive Web Application](https://github.com/emibcn/covid)
 - Original data requests might be blocked by CORS or other technologies
 - Original servers and data might not be efficient enough
@@ -11,10 +12,12 @@ This repo is used to store and serve daily collected data from https://dadescovi
 The collected data from https://dadescovid.cat is minimally adapted before publishing it:
 
 Maps:
+
 - Transform JS statements into JSON objects
 - Reduce some non-visible `id`'s to reduce users and servers resource consumptions
 
 Charts:
+
 - Transform JS statements into JSON objects
 - Transform HTML tags attributes and content into JSON structured data
 
@@ -27,12 +30,15 @@ This repo might collect other data in the future, from the same server, it's [ba
 This process is executed from a [GitHub Workflow](./.github/workflows/get-maps-and-charts.yml) (`cron` scheduled some minuts after official data publication at 10am CEST). Once the data is obtained, deploy it to this repo' GitHub Pages in the `gh-pages` branch.
 
 ## Maps
+
 The data is collected by an ugly [BASH script](./bin/download-map-data.sh). This script collects the interesting parts (maps SVG source, JS code with data on it) and saves them into files. The SVG files are saved transparently. The JS files are executed with NODE to ouput the collected data as JSON.
 
 ## Charts
+
 The data is collected by a [NodeJS package](./charts/). This script scrapes data from HTML tags and JS code. It generates individual JSON files for each region/population selectors, and a global JSON index file with the regions recursive structure and all the download links. Deep use of `async`/`await`.
 
 ## Barcelona
+
 The data is collected by a [nice NodeJS package](./bcn/). This script uses a self made version of [SockJS](./bcn/src/Socket.js) to scrape data from a [RStudio/Shiny](https://github.com/rstudio/shiny) server. It generates individual JSON files for each datasource or datasource section, and a global JSON index file with the data and all the download links. Deep use of `async`/`await`. Some use of Streams and Iterator Generator and deep use of `async`/`await`. Very funny stuff!
 
 # License
