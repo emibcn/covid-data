@@ -1,8 +1,8 @@
 // AbortController polyfill is needed for Node and Chrome GoogleBot
-import { AbortController } from 'abortcontroller-polyfill/dist/cjs-ponyfill.js';
+import { AbortController } from "abortcontroller-polyfill/dist/cjs-ponyfill.js";
 
 // This is only needed for Node
-import fetch from 'cross-fetch';
+import fetch from "cross-fetch";
 
 // Socket: Simulate socketjs xhr-stream client, much simpler, fully async/await,
 // with iterator generator over fetch' body response chunks to responses
@@ -12,36 +12,34 @@ import fetch from 'cross-fetch';
 // Initiates a stream fetch and generates an iterator over its
 // response body stream, transforming partial chunks into full lines
 async function* makeTextFetchLineIterator(fileURL, options) {
-  const utf8Decoder = new TextDecoder('utf-8');
-  const response = await fetch(fileURL, options)
-    .catch(err => {
-      console.log("Fetch Iterator: Fetch: Error:", err);
-      throw err
-    });
-  console.log("Response:",response);
+  const utf8Decoder = new TextDecoder("utf-8");
+  const response = await fetch(fileURL, options).catch((err) => {
+    console.log("Fetch Iterator: Fetch: Error:", err);
+    throw err;
+  });
+  console.log("Response:", response);
   const reader = response.body;
 
   const re = /\n|\r|\r\n/gm;
 
-  let remaining = '';
+  let remaining = "";
   for await (const bytes of reader) {
-
-    const chunk = remaining + (bytes ? utf8Decoder.decode(bytes) : '');
+    const chunk = remaining + (bytes ? utf8Decoder.decode(bytes) : "");
     console.log("Chunk received");
     let startIndex = 0;
     let result;
 
-    while(result = re.exec(chunk)) {
+    while ((result = re.exec(chunk))) {
       const next = chunk.substring(startIndex, result.index);
 
       // If stream end is detected
-      if (reader.done && (
-            re.lastIndex === chunk.length - 1 || // No more chars
-            result[0] === '\n'                   // Only '\n' remaining
-      )) {
+      if (
+        reader.done &&
+        (re.lastIndex === chunk.length - 1 || // No more chars
+          result[0] === "\n") // Only '\n' remaining
+      ) {
         return next;
-      }
-      else {
+      } else {
         // If `yield` returns something, it's a user parameter passed through `next`
         // We use it to cleanly close the stream when called as `next(true)`
         const close = yield next;
@@ -70,10 +68,10 @@ async function* makeTextFetchLineIterator(fileURL, options) {
 }
 
 // Generates random string
-const getRandomStr = (length) => [...Array(length)].map(() => Math.random().toString(36)[2]).join('');
+const getRandomStr = (length) =>
+  [...Array(length)].map(() => Math.random().toString(36)[2]).join("");
 
 class Socket {
-
   // Used to abort ongoing connections
   controller = new AbortController();
 
@@ -101,30 +99,30 @@ class Socket {
   connect = async () => {
     const doneOld = this.done;
     this.done = (async () => {
-
       // Use AbortController to allow aborting the long polling connection
       this.controller.signal.onabort = (event) => {
         console.log("Socket: Connect: Aborted!", event);
-        return true
-      }
-     
+        return true;
+      };
+
       // Parse the long polling connection as an iterable,
       // which already parses the incoming chunks into lines
       this.iterable = makeTextFetchLineIterator(this.urlStreaming, {
-        method: 'POST',
+        method: "POST",
         signal: this.controller.signal,
         headers: {
-          'Connection': 'keep-alive',
+          Connection: "keep-alive",
         },
       });
-     
+
       // Initial connect needs 'o'
       // Reconnections don't
-      const testConnected = doneOld === undefined
-        ? value => value === 'o'
-        : value => /^h{2,}$/.test(value);
+      const testConnected =
+        doneOld === undefined
+          ? (value) => value === "o"
+          : (value) => /^h{2,}$/.test(value);
 
-      for(;;) {
+      for (;;) {
         console.log("Connect: Wait for next line");
         const line = await this.iterable.next();
         console.log("Connect: Received line: ", line);
@@ -141,10 +139,13 @@ class Socket {
       }
     })();
 
-    console.log("Connect: Assign Promise to done:", {old: doneOld, new: this.done});
+    console.log("Connect: Assign Promise to done:", {
+      old: doneOld,
+      new: this.done,
+    });
 
     return this.done;
-  }
+  };
 
   // Close the stream connection
   close = async () => {
@@ -157,12 +158,12 @@ class Socket {
     console.log("Consume remaining iterable and ask to close.");
     try {
       await this.iterable.next(true);
-    } catch(err) { }
+    } catch (err) {}
 
     this.done = undefined;
 
     console.log("Socket: All done closing.");
-  }
+  };
 
   // Parses a message raw response
   // Before parsing, tests is message is applicable to parsing message kind
@@ -174,18 +175,18 @@ class Socket {
     // If found, look for Array of data
     if (result?.length) {
       // Parse multiple data in a possible single message array
-      const [,dataStr] = result;
+      const [, dataStr] = result;
 
       try {
-        return JSON.parse(dataStr)
-      } catch(err) {
-        console.warn("Consume: Error parsing JSON: ", {err, dataStr, result});
+        return JSON.parse(dataStr);
+      } catch (err) {
+        console.warn("Consume: Error parsing JSON: ", { err, dataStr, result });
         throw err;
       }
     }
 
     return false;
-  }
+  };
 
   // Parses an error message received by consume
   // If possible, tries to solve the situation
@@ -193,8 +194,10 @@ class Socket {
   parseConsumeError = async (value) => {
     // Connection was completely restarted
     // We need to send the initial requests
-    if (value === 'o') {
-      console.log(`Complete connection restart detected. Sending initial commands (${this.initialRequests.length})...`);
+    if (value === "o") {
+      console.log(
+        `Complete connection restart detected. Sending initial commands (${this.initialRequests.length})...`
+      );
       await this.sendInitialRequests();
       return false;
     }
@@ -222,15 +225,16 @@ class Socket {
       else {
         throw new Error(`Connection FATAL error: ${code} - ${error}`);
       }
-    }
-    else {
-      const dataObject = this.parseMessageStr(value, /^[0-9A-F]*#[0-9A-F]*\|c\|({.*})$/);
+    } else {
+      const dataObject = this.parseMessageStr(
+        value,
+        /^[0-9A-F]*#[0-9A-F]*\|c\|({.*})$/
+      );
       if (dataObject !== false) {
-        const {code, reason} = dataObject;
+        const { code, reason } = dataObject;
         console.error(`Error received from server: ${code} - ${reason}`);
         throw new Error(`Connection FATAL error: ${code} - ${reason}`);
-      }
-      else {
+      } else {
         // We need a complete new connection
         console.log(`Complete connection restart forced.`);
       }
@@ -238,7 +242,7 @@ class Socket {
 
     // We can continue consuming normally
     return true;
-  }
+  };
 
   // Tries to parse a consume raw response
   // - On success, returns object response
@@ -246,66 +250,61 @@ class Socket {
   // - If array but without object (ACK) or with a not validated
   //   object (busy, recalculating, recalculated, ...), returns null (wait for next)
   parseConsumeResponse = async (value, validate) => {
-
     // Parse "a[...]"
     const dataArray = this.parseMessageStr(value, /^a(\[.*\])$/);
 
     // If found, look for Array of data
     if (dataArray !== false) {
-
       // For each data, look for quoted text with a JSON prefixed with some code
       for (const data of dataArray) {
-
         // Original sockjs code evals the string to get the value
         const parsed = this.parseMessageStr(data, /^\w+#\w+\|m\|(\{.*\})$/);
-       
+
         // If found, parse the JSON part and return the resulting object
         if (parsed !== false) {
-          console.log("Correct result found in response. Message received:", {parsed});
+          console.log("Correct result found in response. Message received:", {
+            parsed,
+          });
 
           // Test if request' final response validation passes
           if (validate(parsed)) {
             console.log("Final message received");
             return parsed;
-          }
-          else {
+          } else {
             console.log("Not validated");
           }
-        }
-        else {
-          console.log("Not matched object:",{data});
+        } else {
+          console.log("Not matched object:", { data });
           const success = await this.parseConsumeError(data);
-          if(!success) {
+          if (!success) {
             return false;
           }
         }
       }
-    }
-    else {
-      return false
+    } else {
+      return false;
     }
 
     return null;
-  }
+  };
 
   // Consume messages in iterator, under demmand
   consume = async (validate) => {
-
     console.log("Consume: called");
 
     // Wait for new line or end of transmission
-    const {done, value} = await this.iterable.next();
+    const { done, value } = await this.iterable.next();
     if (this.done !== done) {
-      console.log("Consume: Done changed:", {old: this.done, new: done});
+      console.log("Consume: Done changed:", { old: this.done, new: done });
       this.done = done;
       if (done === true) {
-        throw new Error('Backend disconnected');
+        throw new Error("Backend disconnected");
       }
     }
 
     console.log("Consume: Received:", {
       done,
-      value: value?.substring(0,80),
+      value: value?.substring(0, 80),
     });
 
     // Tries to parse and validate a correct message string
@@ -323,7 +322,7 @@ class Socket {
     // If parsed is exactly false, it is an error message
     // Try to handle it or rethrow if couldn't
     else if (parsedResponse === false) {
-      console.log("Not matched Array:", {received: {done, value}});
+      console.log("Not matched Array:", { received: { done, value } });
 
       const parsedError = await this.parseConsumeError(value);
 
@@ -340,24 +339,23 @@ class Socket {
     // Try again with the next received line
     console.log("Transactional message. Wait for the next.");
     return await this.consume(validate);
-  }
+  };
 
   // Try to connect 3 times
   // Re-throw the error on the last
-  connectRetry = async (count=3) => {
+  connectRetry = async (count = 3) => {
     try {
       await this.connect();
-    } catch(err) {
-
+    } catch (err) {
       // Re-throw
       if (i === 0) {
-        throw err
+        throw err;
       }
 
       // Re-try
       await this.connectRetry(count - 1);
     }
-  }
+  };
 
   // Handle when connection is in bad/temporal state
   ensureConnection = async () => {
@@ -368,39 +366,43 @@ class Socket {
     }
 
     // If backend is already reconnecting, wait for it to end
-    else if (typeof this.done === 'Promise') {
+    else if (typeof this.done === "Promise") {
       console.log("Consume: Backend reconnecting. Wait for it.");
       await this.done;
     }
-  }
+  };
 
   // Sends to server the requests to correctly initiate the session
   // Used on hard reconnections
   sendInitialRequests = async () => {
     for (const request of this.initialRequests) {
-      const {payload, validate} = request;
+      const { payload, validate } = request;
       await this.send(payload, validate);
     }
-  }
+  };
 
   // Send a request
   send = async (payload, validate, initial) => {
-
     // Ensure we have socket connected
     await this.ensureConnection();
 
     // Save initial requests into a specialized array
     if (initial) {
-      this.initialRequests.push({payload, validate});
+      this.initialRequests.push({ payload, validate });
     }
 
-    console.log(`Send query: POST ${this.url}: ${JSON.stringify([payload]).substring(0,80)}`);
+    console.log(
+      `Send query: POST ${this.url}: ${JSON.stringify([payload]).substring(
+        0,
+        80
+      )}`
+    );
     await fetch(this.url, {
-      method: 'POST',
+      method: "POST",
       signal: this.controller.signal,
       headers: {
-        'Content-Type': 'text/plain',
-        'Connection': 'keep-alive',
+        "Content-Type": "text/plain",
+        Connection: "keep-alive",
       },
       body: JSON.stringify([payload]),
     });
@@ -408,15 +410,11 @@ class Socket {
     // Handle possible server disconnections
     var result;
     try {
-
       result = await this.consume(validate);
-
-    } catch(err) {
-
+    } catch (err) {
       console.log("Send: Error consuming. Try to do soft reconnection.", err);
       await this.connect();
       result = await this.consume(validate);
-
     }
 
     // If result is exactly `false`, we need to resend the query
@@ -425,8 +423,8 @@ class Socket {
     }
 
     return result;
-  }
+  };
 }
 
 export default Socket;
-export {makeTextFetchLineIterator};
+export { makeTextFetchLineIterator };

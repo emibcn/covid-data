@@ -1,25 +1,24 @@
-import {promises as fs, constants} from "fs";
+import { promises as fs, constants } from "fs";
 
-import fetchRetry from './fetchRetry.js';
+import fetchRetry from "./fetchRetry.js";
 import parse from "./parse.js";
 
 const baseUrl = "https://dadescovid.cat";
 
 // Transform a string into a smaller/hash one of it
 // Remove garbage chars to prevent hash changing to the same url
-const hashStr = (str='') => {
+const hashStr = (str = "") => {
   if (str.length === 0) {
     return 0;
   }
 
-  return [...`${str}`.replace(/&id_html=[^&]*/, '')]
-    .map( char => char.charCodeAt(0) )
-    .reduce( (hash, int) => {
-      const hashTmp = ((hash << 5) - hash) + int;
+  return [...`${str}`.replace(/&id_html=[^&]*/, "")]
+    .map((char) => char.charCodeAt(0))
+    .reduce((hash, int) => {
+      const hashTmp = (hash << 5) - hash + int;
       return hashTmp & hashTmp; // Convert to 32bit integer
-    }, 0)
-}
-
+    }, 0);
+};
 
 //
 // Getter and parser for URLs (one by one)
@@ -49,11 +48,10 @@ const hashStr = (str='') => {
 //     - Save JSON into a file, using HASH as file name
 //     - NOT returned to callee (only saved into JSON file)
 class GetChartData {
+  baseHTMLFile = "";
+  baseJSONFile = "";
 
-  baseHTMLFile = '';
-  baseJSONFile = '';
-
-  constructor({ baseHTMLFile, baseJSONFile, fetchOptions={} }={}) {
+  constructor({ baseHTMLFile, baseJSONFile, fetchOptions = {} } = {}) {
     this.baseHTMLFile = baseHTMLFile;
     this.baseJSONFile = baseJSONFile;
     this.fetchOptions = fetchOptions;
@@ -80,7 +78,7 @@ class GetChartData {
       await fs.access(file, constants.F_OK);
       console.log(`The file '${file}' exists. DON'T fetch '${url}'`);
       try {
-        data = await fs.readFile(file, 'utf8');
+        data = await fs.readFile(file, "utf8");
       } catch (err) {
         console.error(err);
         throw err;
@@ -89,34 +87,37 @@ class GetChartData {
       // Increment read counter only if it was ok
       this.counters.read++;
     } catch (err) {
-
       console.log(`The file '${file}' does NOT exists: fetch '${url}'`);
 
       // Try to download a fresh copy from web
       try {
-        const response = await fetchRetry(`${baseUrl}${url}`, this.fetchOptions);
+        const response = await fetchRetry(
+          `${baseUrl}${url}`,
+          this.fetchOptions
+        );
         data = await response.text();
-      } catch(err) {
-        throw new Error(`Downloading '${url}': ${err.name}: ${err.message}`)
+      } catch (err) {
+        throw new Error(`Downloading '${url}': ${err.name}: ${err.message}`);
       }
 
       // Once downloaded, save page into cache file
       try {
         await fs.writeFile(file, data);
-      } catch(err) {
-        throw new Error(`Saving cache for '${url}' to '${file}': ${err.name}: ${err.message}`)
+      } catch (err) {
+        throw new Error(
+          `Saving cache for '${url}' to '${file}': ${err.name}: ${err.message}`
+        );
       }
 
       // Increment downloaded counter only if it was ok
       this.counters.downloaded++;
     }
 
-    return data
-  }
+    return data;
+  };
 
   // Reads or downloads a page URL content and parses it
-  get = async (url='', processStatic=true) => {
-
+  get = async (url = "", processStatic = true) => {
     // URL shortener for file name
     const hash = `?${hashStr(url)}`;
 
@@ -128,35 +129,33 @@ class GetChartData {
     try {
       parsed = await parse(data, processStatic);
     } catch (err) {
-      throw new Error(`Parsing '${url}': ${err.name}: ${err.message}`)
+      throw new Error(`Parsing '${url}': ${err.name}: ${err.message}`);
     }
 
     // Save parsed JSON chart data to file
-    const {chartData, staticData} = parsed;
+    const { chartData, staticData } = parsed;
     try {
-
       await fs.writeFile(
         `${this.baseJSONFile}/chart.json${hash}`,
-        JSON.stringify( {
+        JSON.stringify({
           ...chartData,
-          url
+          url,
         })
       );
-
-    } catch(err) {
-      throw new Error(`Saving JSON for '${url}': ${err.name}: ${err.message}`)
+    } catch (err) {
+      throw new Error(`Saving JSON for '${url}': ${err.name}: ${err.message}`);
     }
 
     // Increment processed counter only if everything was ok
     this.counters.processed++;
 
     // Only return the static data: chart data only needs to be saved into a file
-    return staticData
-  }
+    return staticData;
+  };
 
   // Used to summarize processed data
   getCounters = () => this.counters;
 }
 
 export default GetChartData;
-export {hashStr};
+export { hashStr };

@@ -1,7 +1,7 @@
-import {promises as fs, constants} from "fs";
+import { promises as fs, constants } from "fs";
 
-import GetChartData, {hashStr} from './getChartData.js';
-import {wait} from './fetchRetry.js';
+import GetChartData, { hashStr } from "./getChartData.js";
+import { wait } from "./fetchRetry.js";
 
 // Downloads all charts data, getting all links from combining form options
 //
@@ -18,15 +18,14 @@ import {wait} from './fetchRetry.js';
 //   - Execute all collected download generators at the end, rate limited
 // - All downloads are fail-tolerant and will be read from disk cache if a corresponding file exists
 class GetAllChartData {
-
-  result = []
-  collectedRegionLinksGenerators = []
+  result = [];
+  collectedRegionLinksGenerators = [];
 
   // Creates download promises generators for all region links from a page, recursively
   // Prevent parsing static data: we only need to save the JSON (half global processing time)
   collectRegionLinksRecursive = (list) =>
     list
-      .map( ({url, children}) => [
+      .map(({ url, children }) => [
         // Return this link promise generator and all its children promises generators into an array
         // Get this link promise generator: `false` => Don't parse static data
         () => this.getChartData.get(url, false),
@@ -34,9 +33,9 @@ class GetAllChartData {
       ])
 
       // Flattern array of arrays
-      .reduce( (result, current) => {
-        result.push(...current)
-        return result
+      .reduce((result, current) => {
+        result.push(...current);
+        return result;
       }, []);
 
   // Collects download promises generators for all region links from a page
@@ -44,35 +43,39 @@ class GetAllChartData {
     this.collectedRegionLinksGenerators.push(
       ...this.collectRegionLinksRecursive(data.static)
     );
-  }
+  };
 
   // Downloads links from collected generators, rate limited
   downloadCollectedRegionLinks = async () => {
     const MAX_REQUESTS_PER_SECOND = 1.3;
-    const delay = Math.floor( 1000/MAX_REQUESTS_PER_SECOND );
+    const delay = Math.floor(1000 / MAX_REQUESTS_PER_SECOND);
     const pending = [];
 
-    console.log(`==> Download collected region links, rate limited to ${MAX_REQUESTS_PER_SECOND} requests per second`);
-    for( const generator of this.collectedRegionLinksGenerators ) {
-      pending.push( generator() );
+    console.log(
+      `==> Download collected region links, rate limited to ${MAX_REQUESTS_PER_SECOND} requests per second`
+    );
+    for (const generator of this.collectedRegionLinksGenerators) {
+      pending.push(generator());
       await wait(delay);
     }
 
     console.log("==> Await pending promises");
-    await Promise.all( pending );
-  }
+    await Promise.all(pending);
+  };
 
   // Generate download promises for all region links from a list of pages
   collectRegionLinksFromList = (list) => {
-    list.map( ({content}) => this.collectRegionLinks(content) )
-  }
+    list.map(({ content }) => this.collectRegionLinks(content));
+  };
 
   // Download all the variants of a list and wait for them
   // - If `filterDefault` is true, don't download the elements with `default: true`
-  parseVariantsList = async (data, {filterDefault=true, variant, selected}) => {
+  parseVariantsList = async (
+    data,
+    { filterDefault = true, variant, selected }
+  ) => {
     // Filter default (if needed)
-    const list = data
-      .filter( link => !link.default || !filterDefault);
+    const list = data.filter((link) => !link.default || !filterDefault);
 
     // Download variants sequentially
     for (const link of list) {
@@ -83,21 +86,21 @@ class GetAllChartData {
     }
 
     return list;
-  }
+  };
 
   // Download all the poblacions variants from a page
   // Also download all region links for each processed poblacio
-  parsePoblacioVariants = async (data, {filterDefault, selected} = {}) => {
+  parsePoblacioVariants = async (data, { filterDefault, selected } = {}) => {
     const list = await this.parseVariantsList(data.poblacions, {
       filterDefault,
       selected,
-      variant: 'poblacio'
+      variant: "poblacio",
     });
 
     this.collectRegionLinksFromList(list);
 
-    return list
-  }
+    return list;
+  };
 
   // Download all the territoris variants from a page
   // Also download all poblacions variants for each processed territori,
@@ -106,7 +109,7 @@ class GetAllChartData {
   parseTerritoriVariants = async (data) => {
     // Download non-defaults
     const list = await this.parseVariantsList(data.territoris, {
-      variant: 'territori',
+      variant: "territori",
     });
 
     // Download poblacio variants sequentially
@@ -114,24 +117,24 @@ class GetAllChartData {
       link.poblacions = await this.parsePoblacioVariants(link.content, {
         filterDefault: false,
         selected: {
-          territori: link
-        }
+          territori: link,
+        },
       });
     }
 
-    return list
-  }
+    return list;
+  };
 
   // Gets data and saves its static data to the results array
   // If not passed, default indexes (territori/poblacio) are used (the
   // corresponding to empty/not selected ones/initial link)
-  staticGetter = async (url, {territori, poblacio} = {}) => {
-
+  staticGetter = async (url, { territori, poblacio } = {}) => {
     // Ensure it has not been already downloaded (deduplicate)
-    if ( (territori && poblacio) || this.result.length ) {
-      const found = this.result.find( link =>
-        link.territori === ( territori?.name ?? this.result[0].territori ) &&
-        link.poblacio === ( poblacio?.name ?? this.result[0].poblacio )
+    if ((territori && poblacio) || this.result.length) {
+      const found = this.result.find(
+        (link) =>
+          link.territori === (territori?.name ?? this.result[0].territori) &&
+          link.poblacio === (poblacio?.name ?? this.result[0].poblacio)
       );
 
       if (found) {
@@ -146,18 +149,19 @@ class GetAllChartData {
     this.result.push({
       chart,
       url,
-      territori: ( territori?.name ?? chart.territoris.find(t => t.default).name ),
-      poblacio: ( poblacio?.name ?? chart.poblacions.find(t => t.default).name ),
+      territori:
+        territori?.name ?? chart.territoris.find((t) => t.default).name,
+      poblacio: poblacio?.name ?? chart.poblacions.find((t) => t.default).name,
     });
 
     return chart;
-  }
+  };
 
   // Clear temporal/unneeded data
   clearResult = () => {
-    this.result.forEach( result => {
+    this.result.forEach((result) => {
       result.children = result.chart.static;
-      
+
       delete result.chart;
       delete result.territori.poblacions;
       delete result.territori.content;
@@ -167,22 +171,22 @@ class GetAllChartData {
     // Shorten URLs, recursively (half size for index.json)
     // Also trim names
     const hashUrls = (list) => {
-      list.forEach( link => {
+      list.forEach((link) => {
         link.url = hashStr(link.url);
-        link.name = (link.name||'CATALUNYA').trim();
+        link.name = (link.name || "CATALUNYA").trim();
 
         // Recurse
-        if ('children' in link) {
+        if ("children" in link) {
           hashUrls(link.children);
         }
       });
     };
 
     hashUrls(this.result);
-  }
+  };
 
   // Used to save JSON global index file
-  baseJSONFile = '';
+  baseJSONFile = "";
 
   constructor({ baseHTMLFile, baseJSONFile }) {
     this.baseJSONFile = baseJSONFile;
@@ -192,7 +196,6 @@ class GetAllChartData {
 
   // Downloads and parses everything
   get = async () => {
-
     // Initialize results array
     this.result = [];
 
@@ -218,17 +221,17 @@ class GetAllChartData {
     const file = `${this.baseJSONFile}/index.json`;
     try {
       await fs.writeFile(file, JSON.stringify(this.result));
-    } catch(err) {
+    } catch (err) {
       console.error(err);
-      throw new Error(err)
+      throw new Error(err);
     }
 
     // Return results for whatever reason it may be wanted to be used (testing?)
     return {
       result: this.result,
       counters: this.getChartData.getCounters(),
-    }
-  }
+    };
+  };
 }
 
 export default GetAllChartData;

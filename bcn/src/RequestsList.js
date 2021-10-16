@@ -1,25 +1,25 @@
 // TODO: This file is getting big...
 // This is only needed for Node
-import fetch from 'cross-fetch';
+import fetch from 'cross-fetch'
 
 // Scraped from official web:
 // - Source at: https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn/
 // - Look in the development console (into the `Network` tab) for 'xhr' connections to 'https://.../xhr_send'
 // - We don't need them parsed, just as plain JSON strings
-import Queries from './QueriesPlain.js';
+import Queries from './QueriesPlain.js'
 
 //
 // Requests/parsers helpers
 //
 
 // Menu
-import {findMenu, parseMenu, parseOptions} from './MenuHelpers.js';
+import { findMenu, parseMenu, parseOptions } from './MenuHelpers.js'
 
 // CSV
-import csvToArray from './csvToArray.js';
+import csvToArray from './csvToArray.js'
 
 // Get barris metadata and SVG
-import getBarris from "./barris.js";
+import getBarris from './barris.js'
 
 //
 // Global helpers
@@ -31,13 +31,13 @@ const Globals = {
   // Save regions to ask for more data
   paisos: null,
   provincies: null,
-  municipis: null,
-};
+  municipis: null
+}
 
 const parseSource = (str) => ({
   text: str.replace(/^.*<a[^>]*>([^<]*)<\/a>.*/, '$1'),
-  url: str.replace(/^.*<a [^>]*? href='([^']*)'>.*/, '$1'),
-});
+  url: str.replace(/^.*<a [^>]*? href='([^']*)'>.*/, '$1')
+})
 
 // Parses a graph: They all have the same shape
 const parseGraph = (graph, data) => ({
@@ -47,42 +47,48 @@ const parseGraph = (graph, data) => ({
   source: parseSource(data.values[`txtFont${graph}`]),
   theme: {
     colors: data.values[`plot_${graph}`].x.theme.colors,
-    decimals: data.values[`plot_${graph}`].x.theme.tooltip.valueDecimals,
+    decimals: data.values[`plot_${graph}`].x.theme.tooltip.valueDecimals
   },
   yAxis: {
-    scale: data.values[`plot_${graph}`].x.hc_opts.plotOptions.treemap.layoutAlgorithm,
+    scale:
+      data.values[`plot_${graph}`].x.hc_opts.plotOptions.treemap
+        .layoutAlgorithm,
     type: data.values[`plot_${graph}`].x.hc_opts.yAxis.type,
-    label: data.values[`plot_${graph}`].x.hc_opts.yAxis.title.text,
+    label: data.values[`plot_${graph}`].x.hc_opts.yAxis.title.text
   },
-  values: data.values[`plot_${graph}`].x.hc_opts.series
-    .map(({name, type, tooltip, data}) => ({
+  values: data.values[`plot_${graph}`].x.hc_opts.series.map(
+    ({ name, type, tooltip, data }) => ({
       name: name ?? tooltip.pointFormat.replace(/^<b>([^:]*):.*$/, '$1'),
       type,
-      format: tooltip.pointFormat.replace(/^[^:]*: \{[^:]*:([^}]*)\}([^<]*).*$/, '{$1}$2'),
-      data: data.map(({y}) => y),
-      range: [ // Date range
+      format: tooltip.pointFormat.replace(
+        /^[^:]*: \{[^:]*:([^}]*)\}([^<]*).*$/,
+        '{$1}$2'
+      ),
+      data: data.map(({ y }) => y),
+      range: [
+        // Date range
         data[0].DadesVariableX,
-        data[ data.length - 1 ].DadesVariableX
+        data[data.length - 1].DadesVariableX
       ],
-      dates: data.map( d => d.DadesVariableX ),
-    }))
-});
+      dates: data.map((d) => d.DadesVariableX)
+    })
+  )
+})
 
-const parseGraphResponseFactory = (name, menuCode, debug=false) => {
+const parseGraphResponseFactory = (name, menuCode, debug = false) => {
   return (data, parseErrors) => {
-
     // Parse possible errors
-    parseErrors(name, data.errors);
+    parseErrors(name, data.errors)
 
     // Log to visually find valuable data
     if (debug) {
-      console.dir(data, {depth: null});
+      console.dir(data, { depth: null })
     }
 
     // Get related menu item to get the dataset title
-    const menuOption = findMenu(menuCode, Globals.menu);
+    const menuOption = findMenu(menuCode, Globals.menu)
 
-    const rePlot = /^plot_/;
+    const rePlot = /^plot_/
 
     // Transform data shape
     return {
@@ -91,44 +97,44 @@ const parseGraphResponseFactory = (name, menuCode, debug=false) => {
       type: 'graph',
       sections: Object.keys(data.values)
         // Detect graph in data
-        .filter( v => rePlot.test(v))
+        .filter((v) => rePlot.test(v))
 
         // Transform to graph code
-        .map( v => v.replace(rePlot, ''))
+        .map((v) => v.replace(rePlot, ''))
 
         // Re-shape graph data
-        .map(graph => parseGraph(graph, data)),
-    };
+        .map((graph) => parseGraph(graph, data))
+    }
   }
 }
 
-const graphRequestFactory = (name, menuCode, query, debug=false) => ({
+const graphRequestFactory = (name, menuCode, query, debug = false) => ({
   query,
   validate: (parsed) => parsed?.values && true,
-  parse: parseGraphResponseFactory(name, menuCode),
-});
+  parse: parseGraphResponseFactory(name, menuCode)
+})
 
 const parseMap = async (map, data, regions) => {
   // Fetch data from CSV file at URL
   const fileUrl =
-    "https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn/" +
-    data.values[`botoDescarregaMapa_${map}`];
+    'https://dades.ajuntament.barcelona.cat/seguiment-covid19-bcn/' +
+    data.values[`botoDescarregaMapa_${map}`]
 
-  console.log(`Fetch CSV file from ${fileUrl}`);
-  const response = await fetch(fileUrl);
-  const csvStr = await response.text();
+  console.log(`Fetch CSV file from ${fileUrl}`)
+  const response = await fetch(fileUrl)
+  const csvStr = await response.text()
 
-  console.log(`Received data from ${fileUrl}`);
+  console.log(`Received data from ${fileUrl}`)
 
-  const csvData = csvToArray( csvStr )
+  const csvData = csvToArray(csvStr)
     // Parse numbers in strings
-    .map( ({codi_barri, ...rest}) => ({
+    .map(({ codi_barri, ...rest }) => ({
       codi_barri: Number(codi_barri),
-      ...rest,
-    }));
+      ...rest
+    }))
 
   // Log to visually find valuable data
-  //console.dir(csvData, {depth: null});
+  // console.dir(csvData, {depth: null});
 
   return {
     code: map,
@@ -138,13 +144,12 @@ const parseMap = async (map, data, regions) => {
     source: parseSource(data.values[`txtFont${map}`]),
     // TODO: Parse date
     current: data.values[`txtSituacio${map}`].replace(/^<b>(.*?)<\/b>$/, '$1'),
-    values: csvData,
+    values: csvData
   }
-};
+}
 
 const RequestsList = [
-
-  // 
+  //
   // INSTRUCTIONS;
   // - Save Queries into `./QueriesPlain.js`
   // - Use `validate` to find a field in a correct result. This streaming stuff sends a lot of garbage
@@ -163,23 +168,23 @@ const RequestsList = [
 
   // Pre
   {
-    query: `0#0|o|`,
+    query: '0#0|o|',
     force: true, // Don't use cached data
     validate: (parsed) => {
       if (parsed?.config) {
         // Save sessionId for further uses
         // Do it in validation pass to update the sessionId on reconnect
-        Globals.session = parsed.config.sessionId;
-        return true;
+        Globals.session = parsed.config.sessionId
+        return true
       }
 
-      return false;
+      return false
     },
     parse: (data) => {
       // Do nothing, return nothing
       // Not even possible data errors
-      return null;
-    },
+      return null
+    }
   },
 
   // Initialize
@@ -191,21 +196,27 @@ const RequestsList = [
       // Parse possible errors, return nothing
       // Possible wanted static data:
       // - ...
-      parseErrors('Initialization', data.errors);
+      parseErrors('Initialization', data.errors)
 
       // Log to visually find valuable data
-      //console.dir(data, {depth: null});
+      // console.dir(data, {depth: null});
 
       // Save in a global to allow other requests to use it's data
-      Globals.menu = parseMenu( data.values.sidebarMenuLeft.html );
-      Globals.paisos = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PAI.html );
-      Globals.provincies = parseOptions( data.values.inputSeleccioIND_MOB_VIS_PRO.html );
-      Globals.municipis = parseOptions( data.values.inputSeleccioIND_MOB_VIS_MUN.html );
-      const {values, svg} = await getBarris({disableCache: true});
-      Globals.barris = values;
+      Globals.menu = parseMenu(data.values.sidebarMenuLeft.html)
+      Globals.paisos = parseOptions(
+        data.values.inputSeleccioIND_MOB_VIS_PAI.html
+      )
+      Globals.provincies = parseOptions(
+        data.values.inputSeleccioIND_MOB_VIS_PRO.html
+      )
+      Globals.municipis = parseOptions(
+        data.values.inputSeleccioIND_MOB_VIS_MUN.html
+      )
+      const { values, svg } = await getBarris({ disableCache: true })
+      Globals.barris = values
 
       // Remove `session` from saved data
-      const {session, ...globalsWithoutSession} = Globals;
+      const { session, ...globalsWithoutSession } = Globals
 
       return {
         code: 'menu',
@@ -215,11 +226,11 @@ const RequestsList = [
           {
             code: 'barris',
             extension: 'svg',
-            values: svg,
-          },
+            values: svg
+          }
         ]
-      };
-    },
+      }
+    }
   },
 
   // Historical Events
@@ -227,83 +238,111 @@ const RequestsList = [
     query: `2#0|m|${Queries.timeline}`,
     validate: (parsed) => parsed?.values && true,
     parse: (data, parseErrors) => {
-
       // Parse possible errors
-      parseErrors('Timeline', data.errors);
+      parseErrors('Timeline', data.errors)
 
       // Log to visually find valuable data
-      //console.dir(data, {depth: null});
+      // console.dir(data, {depth: null});
 
       // Transform data shape
       return {
         code: 'timeline',
         title: data.values.txtTitolTimeline,
         type: 'timeline',
-        dates: data.values.timelineNoticies.x.items.map( d => d.start ),
-        range: [ // Date range
+        dates: data.values.timelineNoticies.x.items.map((d) => d.start),
+        range: [
+          // Date range
           data.values.timelineNoticies.x.items[0].start,
           data.values.timelineNoticies.x.items[
             data.values.timelineNoticies.x.items.length - 1
-          ].start,
+          ].start
         ],
-        values: data.values.timelineNoticies.x.items
-          .map(({start: date, title, content}) => ({
+        values: data.values.timelineNoticies.x.items.map(
+          ({ start: date, title, content }) => ({
             date,
             title,
             // Parse HTML table with only one useful string value in it
             // Gets content from a <td> tag without any tag inside, multilined
-            tag: content.replace(/[\s\S]*<td>([^<]*)<\/td>[\s\S]*$/m, '$1'),
-          })),
-      };
-    },
+            tag: content.replace(/[\s\S]*<td>([^<]*)<\/td>[\s\S]*$/m, '$1')
+          })
+        )
+      }
+    }
   },
 
   // Mobility
-  graphRequestFactory('Mobility', 'mobilitatVehicles', `3#0|m|${Queries.mobility}`),
+  graphRequestFactory(
+    'Mobility',
+    'mobilitatVehicles',
+    `3#0|m|${Queries.mobility}`
+  ),
 
   // Consums
   graphRequestFactory('Consum', 'consums', `4#0|m|${Queries.consums}`),
 
   // Preus: Alimentacio
-  graphRequestFactory('Alimentació', 'alimentacio', `5#0|m|${Queries.alimentacio}`),
+  graphRequestFactory(
+    'Alimentació',
+    'alimentacio',
+    `5#0|m|${Queries.alimentacio}`
+  ),
 
   // Preus: Subministraments
-  graphRequestFactory('Subministraments', 'subministraments', `6#0|m|${Queries.subministraments}`),
+  graphRequestFactory(
+    'Subministraments',
+    'subministraments',
+    `6#0|m|${Queries.subministraments}`
+  ),
 
   // Visitants: Select all values from all charts before asking for the charts themselves
   {
-    query: () => `7#0|m|${JSON.stringify({
-      method: "update",
-      data:{
-        selectMunicipis: Globals.municipis.map(m => m.code),
-        selectProvincies: Globals.provincies.map(m => m.code),
-        selectPaisos: Globals.paisos.map(m => m.code),
-      }
-    })}`,
+    query: () =>
+      `7#0|m|${JSON.stringify({
+        method: 'update',
+        data: {
+          selectMunicipis: Globals.municipis.map((m) => m.code),
+          selectProvincies: Globals.provincies.map((m) => m.code),
+          selectPaisos: Globals.paisos.map((m) => m.code)
+        }
+      })}`,
     force: true,
     validate: (parsed) => parsed?.busy === 'idle' && true,
     parse: (data, parseErrors) => {
-
       // Log to visually find valuable data
-      //console.dir(data, {depth: null});
+      // console.dir(data, {depth: null});
 
       // Return nothing: only selecting next request' options
-      return null;
-    },
+      return null
+    }
   },
 
   // Visitants
-  graphRequestFactory('Visitants', 'mobilitatOrigens', `8#0|m|${Queries.mobilitatOrigens}`),
+  graphRequestFactory(
+    'Visitants',
+    'mobilitatOrigens',
+    `8#0|m|${Queries.mobilitatOrigens}`
+  ),
 
   // Port & Aeroport
-  graphRequestFactory('Port & Aeroport', 'portAeroport', `9#0|m|${Queries.portAeroport}`),
+  graphRequestFactory(
+    'Port & Aeroport',
+    'portAeroport',
+    `9#0|m|${Queries.portAeroport}`
+  ),
 
   // Defuncions
-  graphRequestFactory('Defuncions', 'defuncions', `A#0|m|${Queries.defuncions}`),
+  graphRequestFactory(
+    'Defuncions',
+    'defuncions',
+    `A#0|m|${Queries.defuncions}`
+  ),
 
   // Vacunació Acumulada
-  graphRequestFactory('Vacunació Acumulada', 'vacunacioAcumulada', `B#0|m|${Queries.vacunacioAcumulada}`),
-
+  graphRequestFactory(
+    'Vacunació Acumulada',
+    'vacunacioAcumulada',
+    `B#0|m|${Queries.vacunacioAcumulada}`
+  ),
 
   // Distribució Territorial
   // Already collected data from barris.json/svg matches CSV codes
@@ -313,17 +352,16 @@ const RequestsList = [
     force: true, // Need to initialize map to download it's CSV
     validate: (parsed) => parsed?.values && true,
     parse: async (data, parseErrors) => {
-
       // Parse possible errors
-      parseErrors('DistribucioTerritorial', data.errors);
+      parseErrors('DistribucioTerritorial', data.errors)
 
       // Log to visually find valuable data
-      //console.dir(data, {depth: null});
+      // console.dir(data, {depth: null});
 
       // Get related menu item to get the dataset title
-      const menuOption = findMenu('distribucioTerritorial', Globals.menu);
+      const menuOption = findMenu('distribucioTerritorial', Globals.menu)
 
-      const reMap = /^mapaBarris/;
+      const reMap = /^mapaBarris/
 
       // Transform data shape
       return {
@@ -335,17 +373,17 @@ const RequestsList = [
           await Promise.all(
             Object.keys(data.values)
               // Detect graph in data
-              .filter( v => reMap.test(v))
+              .filter((v) => reMap.test(v))
 
               // Transform to graph code
-              .map( v => v.replace(reMap, ''))
+              .map((v) => v.replace(reMap, ''))
 
               // Re-shape graph data
               .map((map) => parseMap(map, data, 'barris'))
-            ),
-      };
-    },
-  },
-];
+          )
+      }
+    }
+  }
+]
 
-export default RequestsList;
+export default RequestsList
