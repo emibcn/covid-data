@@ -41,7 +41,7 @@ parse_url() {
 
     # Download page and simplify id's to reduce space
     curl -s "${URL}" \
-	| sed -e 's/'${MAP}_'/'${MAP:0:1}'_/g' \
+	| sed -e 's/'"${MAP}_"'/'"${MAP:0:1}"'_/g' \
 	> "${DL_FILE}"
 
     # Check if we need to create the days array
