@@ -1,3 +1,4 @@
+[![DeepSource](https://deepsource.io/gh/emibcn/covid-data.svg/?label=active+issues&show_trend=true&token=qFtT_T_AhcT4Azdo-cIAjfiW)](https://deepsource.io/gh/emibcn/covid-data/?ref=repository-badge)
 ![Download maps and charts from backend and publish with GitHub Pages](https://github.com/emibcn/covid-data/workflows/Download%20maps%20and%20charts%20from%20backend%20and%20publish%20with%20GitHub%20Pages/badge.svg)
 
 # Covid Data
