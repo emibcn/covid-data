@@ -48,8 +48,7 @@ parse_url() {
     if [ ! -f "${DAYS_FILE}" ]
     then
         # Extract relevant data from JS code
-        cat "${DL_FILE}" \
-            | egrep '^\s*var (dies) =' \
+        egrep '^\s*var (dies) =' "${DL_FILE}" \
             | sed -e 's/^\s*var /const /' \
             > "${TMP_FILE}"
 
@@ -67,8 +66,7 @@ parse_url() {
     fi
 
     # Extract relevant data from JS code
-    cat "${DL_FILE}" \
-	| egrep '^\s*var (titol|valor_label|valors) =' \
+    egrep '^\s*var (titol|valor_label|valors) =' "${DL_FILE}" \
 	| sed -e 's/^\s*var /const /' \
         > "${TMP_FILE}"
 
