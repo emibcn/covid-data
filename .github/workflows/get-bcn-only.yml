@@ -12,12 +12,12 @@ jobs:
     steps:
 
     # Get master branch to get executable
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         ref: master
 
     # Get GitHub current data
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         ref: gh-pages
         path: newData
