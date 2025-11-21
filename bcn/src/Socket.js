@@ -149,7 +149,7 @@ class Socket {
 
   // Close the stream connection
   close = async () => {
-    console.log(`Socket: Abort pending connections`);
+    console.log("Socket: Abort pending connections");
 
     // Once used, create a new AbortController
     this.controller.abort();
@@ -196,7 +196,7 @@ class Socket {
     // We need to send the initial requests
     if (value === "o") {
       console.log(
-        `Complete connection restart detected. Sending initial commands (${this.initialRequests.length})...`
+        `Complete connection restart detected. Sending initial commands (${this.initialRequests.length})...`,
       );
       await this.sendInitialRequests();
       return false;
@@ -214,7 +214,7 @@ class Socket {
       // Unable to open connection
       if (code === 4705) {
         // We need a complete new connection
-        console.log(`Complete connection restart forced.`);
+        console.log("Complete connection restart forced.");
         await this.close();
         this.generateConnectionString();
         await this.connect();
@@ -228,7 +228,7 @@ class Socket {
     } else {
       const dataObject = this.parseMessageStr(
         value,
-        /^[0-9A-F]*#[0-9A-F]*\|c\|({.*})$/
+        /^[0-9A-F]*#[0-9A-F]*\|c\|({.*})$/,
       );
       if (dataObject !== false) {
         const { code, reason } = dataObject;
@@ -236,7 +236,7 @@ class Socket {
         throw new Error(`Connection FATAL error: ${code} - ${reason}`);
       } else {
         // We need a complete new connection
-        console.log(`Complete connection restart forced.`);
+        console.log("Complete connection restart forced.");
       }
     }
 
@@ -394,8 +394,8 @@ class Socket {
     console.log(
       `Send query: POST ${this.url}: ${JSON.stringify([payload]).substring(
         0,
-        80
-      )}`
+        80,
+      )}`,
     );
     await fetch(this.url, {
       method: "POST",
@@ -408,7 +408,7 @@ class Socket {
     });
 
     // Handle possible server disconnections
-    var result;
+    let result;
     try {
       result = await this.consume(validate);
     } catch (err) {
