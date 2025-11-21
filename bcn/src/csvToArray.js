@@ -1,13 +1,13 @@
 const csvToArray = (data) => {
   // Split data into lines and separate headers from actual data
   // using Array spread operator
-  const [headerLine, ...lines] = data.split('\n')
+  const [headerLine, ...lines] = data.split("\n");
 
   // Use common line separator, which parses each line as the contents of a JSON array
-  const parseLine = (line) => JSON.parse(`[${line}]`)
+  const parseLine = (line) => JSON.parse(`[${line}]`);
 
   // Split headers line into an array
-  const headers = parseLine(headerLine)
+  const headers = parseLine(headerLine);
 
   // Create objects from parsing lines
   // There will be as much objects as lines
@@ -18,13 +18,13 @@ const csvToArray = (data) => {
       .reduce(
         (object, value, index) => ({
           ...object,
-          [headers[index]]: value
+          [headers[index]]: value,
         }),
-        {}
-      )
-  )
+        {},
+      ),
+  );
 
-  return objects
-}
+  return objects;
+};
 
-export default csvToArray
+export default csvToArray;

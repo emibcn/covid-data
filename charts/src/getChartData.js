@@ -93,7 +93,7 @@ class GetChartData {
       try {
         const response = await fetchRetry(
           `${baseUrl}${url}`,
-          this.fetchOptions
+          this.fetchOptions,
         );
         data = await response.text();
       } catch (err) {
@@ -105,7 +105,7 @@ class GetChartData {
         await fs.writeFile(file, data);
       } catch (err) {
         throw new Error(
-          `Saving cache for '${url}' to '${file}': ${err.name}: ${err.message}`
+          `Saving cache for '${url}' to '${file}': ${err.name}: ${err.message}`,
         );
       }
 
@@ -140,7 +140,7 @@ class GetChartData {
         JSON.stringify({
           ...chartData,
           url,
-        })
+        }),
       );
     } catch (err) {
       throw new Error(`Saving JSON for '${url}': ${err.name}: ${err.message}`);
