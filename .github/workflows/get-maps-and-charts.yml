@@ -15,7 +15,7 @@ jobs:
     steps:
 
     # Get master branch to get executable
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         ref: 'master'
 
