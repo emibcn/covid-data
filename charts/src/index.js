@@ -41,7 +41,7 @@ class GetAllChartData {
   // Collects download promises generators for all region links from a page
   collectRegionLinks = (data) => {
     this.collectedRegionLinksGenerators.push(
-      ...this.collectRegionLinksRecursive(data.static)
+      ...this.collectRegionLinksRecursive(data.static),
     );
   };
 
@@ -52,7 +52,7 @@ class GetAllChartData {
     const pending = [];
 
     console.log(
-      `==> Download collected region links, rate limited to ${MAX_REQUESTS_PER_SECOND} requests per second`
+      `==> Download collected region links, rate limited to ${MAX_REQUESTS_PER_SECOND} requests per second`,
     );
     for (const generator of this.collectedRegionLinksGenerators) {
       pending.push(generator());
@@ -72,7 +72,7 @@ class GetAllChartData {
   // - If `filterDefault` is true, don't download the elements with `default: true`
   parseVariantsList = async (
     data,
-    { filterDefault = true, variant, selected }
+    { filterDefault = true, variant, selected },
   ) => {
     // Filter default (if needed)
     const list = data.filter((link) => !link.default || !filterDefault);
@@ -134,7 +134,7 @@ class GetAllChartData {
       const found = this.result.find(
         (link) =>
           link.territori === (territori?.name ?? this.result[0].territori) &&
-          link.poblacio === (poblacio?.name ?? this.result[0].poblacio)
+          link.poblacio === (poblacio?.name ?? this.result[0].poblacio),
       );
 
       if (found) {

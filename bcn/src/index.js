@@ -32,6 +32,7 @@ class GetAllData {
     downloaded: 0,
     read: 0,
   };
+
   errors = {
     count: 0,
     messages: [],
@@ -110,7 +111,7 @@ class GetAllData {
     } catch (err) {
       console.log(
         `The file '${file}' was not read from cache: fetch '${hash}':`,
-        err.message
+        err.message,
       );
 
       // Try to download a fresh copy from web
@@ -122,7 +123,7 @@ class GetAllData {
         await fs.writeFile(file, JSON.stringify(data));
       } catch (err) {
         throw new Error(
-          `Saving cache for '${hash}': ${err.name}: ${err.message}`
+          `Saving cache for '${hash}': ${err.name}: ${err.message}`,
         );
       }
 
@@ -214,7 +215,7 @@ class GetAllData {
           `${this.baseJSONFile}/${file.name}`,
           typeof file.values === "string"
             ? file.values
-            : JSON.stringify(file.values)
+            : JSON.stringify(file.values),
         );
       } catch (err) {
         console.error(err);
