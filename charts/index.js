@@ -16,7 +16,7 @@ try {
 
   console.log(
     "Summary:",
-    result.map(({ territori, poblacio }) => ({ territori, poblacio }))
+    result.map(({ territori, poblacio }) => ({ territori, poblacio })),
   );
   console.log("Counters:", counters);
 } catch (err) {
